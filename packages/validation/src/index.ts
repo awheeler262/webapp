@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { IsEmail, IsString, MinLength } from 'class-validator';
 
 export const CreateUserSchema = z.object({
   email: z.string().email(),
@@ -6,4 +7,19 @@ export const CreateUserSchema = z.object({
   password: z.string().min(8),
 });
 
-export type CreateUserDto = z.infer<typeof CreateUserSchema>;
+// Zod type for frontend use
+export type CreateUserInput = z.infer<typeof CreateUserSchema>;
+
+// Class for NestJS use
+export class CreateUserDto {
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  @MinLength(1)
+  name: string;
+
+  @IsString()
+  @MinLength(8)
+  password: string;
+}

@@ -10,6 +10,46 @@ pnpm dev:api    # NestJS on :3001
 pnpm dev:web    # Nuxt on :3000
 ```
 
+### Prisma
+
+Claude says:
+
+```text
+Verified end-to-end: rebuilt, ran node dist/main.js, confirmed all routes map (/api/auth/*, /api/posts/*) and Nest application successfully started. A curl to /api/posts returns a 500 only because no real Postgres is reachable at the configured local prisma dev URL (ECONNREFUSED) — that's an environment/infra requirement (start prisma dev or point DATABASE_URL at a real Postgres), not a code issue.
+```
+
+```text
+CONNECT EXISTING DATABASE:
+  1. Configure your DATABASE_URL in prisma.config.ts
+  2. Run prisma db pull to introspect your database.
+
+CREATE NEW DATABASE:
+  Local: npx prisma dev (runs Postgres locally in your terminal)
+  Cloud: npx create-db (creates a free Prisma Postgres database)
+
+Then, define your models in prisma/schema.prisma and run prisma migrate dev to apply your schema.
+```
+
+```bash
+cd apps/api
+pnpm dlx prisma generate
+```
+
+Prisma migration
+
+```bash
+pnpm dlx prisma migrate dev --name init
+```
+
+Any time you change prisma/schema.prisma — adding a model, adding a field, changing a relation — you need to run two commands:
+
+```bash
+pnpm dlx prisma migrate dev --name describe-your-change  # updates the database
+pnpm dlx prisma generate                                  # updates the TypeScript type
+```
+
+The next natural steps from here would be adding refresh tokens, email verification, role-based access control, and connecting the Nuxt frontend to these endpoints with a composable API layer.
+
 ## Playwright
 
 ### florida_mayors.spec.ts
