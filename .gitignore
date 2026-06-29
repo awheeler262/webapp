@@ -33,3 +33,4 @@ npm-debug.log*
 webapp.code-workspace
 *.html
 .claude
+notes.md
