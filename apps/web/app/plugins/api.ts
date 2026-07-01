@@ -19,6 +19,11 @@ export default defineNuxtPlugin(() => {
         headers.set('Authorization', `Bearer ${token.value}`)
         options.headers = headers
       }
+    },
+    onResponseError({ response }) {
+      if (response.status === 401) {
+        navigateTo('/login')
+      }
     }
   })
 

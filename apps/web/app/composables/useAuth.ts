@@ -1,3 +1,5 @@
+import type { FetchError } from 'ofetch'
+
 type AuthUser = {
   email: string
 }
@@ -25,12 +27,18 @@ export function useAuth() {
 
   async function login(email: string, password: string) {
     const $api = useApi()
-    const { accessToken } = await $api<{ accessToken: string }>('/api/auth/login', {
-      method: 'POST',
-      body: { email, password }
-    })
-    token.value = accessToken
-    user.value = decodeUser(accessToken)
+    try {
+      const { accessToken } = await $api<{ accessToken: string }>('/api/auth/login', {
+        method: 'POST',
+        body: { email, password }
+      })
+      token.value = accessToken
+      user.value = decodeUser(accessToken)
+    } catch (err) {
+      const e = err as FetchError
+      console.error(e.status)
+      console.error(e.data)
+    }
   }
 
   function logout() {
