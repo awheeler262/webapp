@@ -30,10 +30,11 @@ function onLogout() {
 
 <template>
   <header class="navbar">
-    <NuxtLink to="/" class="brand">MyApp</NuxtLink>
+    <NuxtLink to="/" class="brand">Mycelium Dreams</NuxtLink>
 
     <nav class="links">
       <NuxtLink to="/">Home</NuxtLink>
+      <NuxtLink to="/fair">FAIR</NuxtLink>
       <NuxtLink v-if="isLoggedIn" to="/chat">Chat</NuxtLink>
     </nav>
 
@@ -65,6 +66,7 @@ function onLogout() {
   padding: 1rem 2rem;
   border-bottom: 1px solid #e5e5e5;
   position: relative;
+  font-family: "Noto Sans", Verdana, sans-serif;
 }
 
 .brand {

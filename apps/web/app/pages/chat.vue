@@ -17,5 +17,6 @@ if (!isLoggedIn.value) {
 .chat {
   padding: 4rem 2rem;
   text-align: center;
+  font-family: "Noto Sans", Verdana, sans-serif;
 }
 </style>

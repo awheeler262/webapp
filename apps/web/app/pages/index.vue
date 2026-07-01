@@ -18,6 +18,7 @@ const { isLoggedIn } = useAuth()
   display: flex;
   justify-content: center;
   padding: 4rem 2rem;
+  font-family: "Noto Sans", Verdana, sans-serif;
 }
 
 .hero {
