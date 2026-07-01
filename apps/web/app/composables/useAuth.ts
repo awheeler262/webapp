@@ -4,8 +4,10 @@ type AuthUser = {
 
 function decodeUser(token: string | null): AuthUser | null {
   if (!token) return null
+  const raw_payload = token.split('.')[1]
+  if (!raw_payload) return null
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]))
+    const payload = JSON.parse(atob(raw_payload))
     return { email: payload.email }
   } catch {
     return null
@@ -22,9 +24,8 @@ export function useAuth() {
   const isLoggedIn = computed(() => !!token.value)
 
   async function login(email: string, password: string) {
-    const config = useRuntimeConfig()
-    const { accessToken } = await $fetch<{ accessToken: string }>('/api/auth/login', {
-      baseURL: config.public.apiBaseUrl,
+    const $api = useApi()
+    const { accessToken } = await $api<{ accessToken: string }>('/api/auth/login', {
       method: 'POST',
       body: { email, password }
     })
