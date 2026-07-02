@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { FetchError } from 'ofetch'
 
-// const { isLoggedIn, user } = useAuth()
+const { isLoggedIn, user } = useAuth()
 
-// if (!isLoggedIn.value) {
-//   await navigateTo('/')
-// }
+if (!isLoggedIn.value) {
+  await navigateTo('/')
+}
 
 async function test() {
   const $api = useApi()
@@ -225,10 +225,6 @@ function showItem(item: Item) {
     <h1>Factor Analysis of Information Risk (FAIR)</h1>
     <p>
         Apply the FAIR model to quantify information and operational risk in financial terms.
-    </p>
-    <p>
-        Actual analysis happens on the backend with a prompt sent to Claude AI.
-        We currently have this feature turned off because of token costs.
     </p>
     <p>
       Below we have an example for demonstration purposes that shows results from prompts sent

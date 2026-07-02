@@ -4,23 +4,48 @@ type AuthUser = {
   email: string
 }
 
-function decodeUser(token: string | null): AuthUser | null {
+type JwtPayload = {
+  email?: string
+  exp?: number
+}
+
+const DEFAULT_MAX_AGE = 60 * 60 * 1 // 24 * 7
+
+function decodeJwt(token: string | null): JwtPayload | null {
   if (!token) return null
-  const raw_payload = token.split('.')[1]
-  if (!raw_payload) return null
+  const rawPayload = token.split('.')[1]
+  if (!rawPayload) return null
   try {
-    const payload = JSON.parse(atob(raw_payload))
-    return { email: payload.email }
+    return JSON.parse(atob(rawPayload))
   } catch {
     return null
   }
+}
+
+function decodeUser(token: string | null): AuthUser | null {
+  const payload = decodeJwt(token)
+  if (!payload) return null
+  return { email: payload.email ?? '' }
+}
+
+// useCookie's maxAge is captured once, when the ref below is created, so it can't
+// reflect a freshly-issued token's real `exp`. Nuxt writes the cookie asynchronously
+// (via a watcher), so we wait a tick for that write to land, then re-stamp the
+// Expires attribute to match the JWT's own expiry instead of the static fallback.
+async function alignCookieExpiry(token: string) {
+  if (!import.meta.client) return
+  const payload = decodeJwt(token)
+  if (!payload?.exp) return
+  await nextTick()
+  const expires = new Date(payload.exp * 1000).toUTCString()
+  document.cookie = `auth_token=${encodeURIComponent(token)}; path=/; samesite=lax; expires=${expires}`
 }
 
 export function useAuth() {
   const token = useCookie<string | null>('auth_token', {
     default: () => null,
     sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 7
+    maxAge: DEFAULT_MAX_AGE
   })
   const user = useState<AuthUser | null>('auth_user', () => decodeUser(token.value))
   const isLoggedIn = computed(() => !!token.value)
@@ -34,6 +59,7 @@ export function useAuth() {
       })
       token.value = accessToken
       user.value = decodeUser(accessToken)
+      await alignCookieExpiry(accessToken)
     } catch (err) {
       const e = err as FetchError
       console.error(e.status)
