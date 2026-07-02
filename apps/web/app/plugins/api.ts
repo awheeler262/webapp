@@ -20,6 +20,14 @@ export default defineNuxtPlugin(() => {
         options.headers = headers
       }
     },
+    onRequestError({ error }) {
+      const message = error.message ?? 'unknown error'
+      throw {
+        status: 0,
+        data: { message: `Network error: ${message}` },
+        raw: error
+      };
+    },
     onResponseError({ response }) {
       if (response && response.status === 401) {
         navigateTo('/login')
