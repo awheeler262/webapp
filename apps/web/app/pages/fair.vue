@@ -353,6 +353,7 @@ function showItem(item: Item) {
   font-family: "Noto Sans", Verdana, sans-serif;
   max-width: 900px;
   margin: 0 auto;
+  background-color: #F5F7FA;
 }
 
 h1 {

@@ -5,8 +5,8 @@ const { isLoggedIn } = useAuth()
 <template>
   <main class="landing">
     <section class="hero">
-      <h1>Welcome to MyApp</h1>
-      <p>A simple starting point for your app, with login built in.</p>
+      <h1>Welcome | Bienvenido | مَرْحَبًا</h1>
+      <p>Experimental Web Application</p>
       <!-- NuxtLink v-if="isLoggedIn" to="/chat" class="cta">Go to Chat</NuxtLink -->
       <NuxtLink v-if="isLoggedIn" to="/fair" class="cta">Go to FAIR</NuxtLink>
       <p v-else class="hint">Log in from the navbar to get started.</p>
@@ -20,6 +20,7 @@ const { isLoggedIn } = useAuth()
   justify-content: center;
   padding: 4rem 2rem;
   font-family: "Noto Sans", Verdana, sans-serif;
+  background-color: #F5F7FA;
 }
 
 .hero {

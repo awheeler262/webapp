@@ -67,6 +67,8 @@ function onLogout() {
   border-bottom: 1px solid #e5e5e5;
   position: relative;
   font-family: "Noto Sans", Verdana, sans-serif;
+  background-color: #2F3A56;
+  color: white;
 }
 
 .brand {
