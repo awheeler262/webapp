@@ -35,7 +35,7 @@ function onLogout() {
     <nav class="links">
       <NuxtLink to="/">Home</NuxtLink>
       <NuxtLink to="/fair">FAIR</NuxtLink>
-      <NuxtLink v-if="isLoggedIn" to="/chat">Chat</NuxtLink>
+      <!-- NuxtLink v-if="isLoggedIn" to="/chat">Chat</NuxtLink -->
     </nav>
 
     <div class="auth">
@@ -46,8 +46,8 @@ function onLogout() {
       <template v-else>
         <button class="btn" @click="showLoginForm = !showLoginForm">Login</button>
         <form v-if="showLoginForm" class="login-form" @submit.prevent="onSubmit">
-          <input v-model="email" type="email" placeholder="Email" required />
-          <input v-model="password" type="password" placeholder="Password" required />
+          <input v-model="email" type="email" placeholder="Email" autocomplete="username" required />
+          <input v-model="password" type="password" placeholder="Password" autocomplete="current-password" required/>
           <button class="btn btn-primary" type="submit" :disabled="loading">
             {{ loading ? 'Logging in...' : 'Sign in' }}
           </button>
