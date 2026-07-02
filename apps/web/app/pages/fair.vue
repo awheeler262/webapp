@@ -231,7 +231,8 @@ function showItem(item: Item) {
         We currently have this feature turned off because of token costs.
     </p>
     <p>
-      Below we have an example for demonstration purposes.
+      Below we have an example for demonstration purposes that shows results from prompts sent
+      to Claude AI using a local Jupyter notebook.
     </p>
     <div class="table-toolbar">
       <button class="btn btn-primary" @click="addItem">+ Add</button>
