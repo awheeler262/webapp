@@ -38,13 +38,14 @@ async function alignCookieExpiry(token: string) {
   if (!payload?.exp) return
   await nextTick()
   const expires = new Date(payload.exp * 1000).toUTCString()
-  document.cookie = `auth_token=${encodeURIComponent(token)}; path=/; samesite=lax; expires=${expires}`
+  document.cookie = `auth_token=${encodeURIComponent(token)}; path=/; samesite=lax; secure; expires=${expires}`
 }
 
 export function useAuth() {
   const token = useCookie<string | null>('auth_token', {
     default: () => null,
     sameSite: 'lax',
+    secure: true,
     maxAge: DEFAULT_MAX_AGE
   })
   const user = useState<AuthUser | null>('auth_user', () => decodeUser(token.value))
