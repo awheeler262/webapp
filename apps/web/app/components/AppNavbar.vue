@@ -36,6 +36,7 @@ function onLogout() {
       <NuxtLink to="/">Home</NuxtLink>
       <NuxtLink v-if="isLoggedIn" to="/fair">FAIR</NuxtLink>
       <!-- NuxtLink v-if="isLoggedIn" to="/chat">Chat</NuxtLink -->
+      <NuxtLink to="/about">About</NuxtLink>
     </nav>
 
     <div class="auth">
@@ -60,15 +61,15 @@ function onLogout() {
 
 <style scoped>
 .navbar {
-  display: flex;
   align-items: center;
+  background-color: #2F3A56;
+  border-bottom: 1px solid #e5e5e5;
+  color: white;
+  display: flex;
+  font-family: "Noto Sans", Verdana, sans-serif;
   gap: 2rem;
   padding: 1rem 2rem;
-  border-bottom: 1px solid #e5e5e5;
   position: relative;
-  font-family: "Noto Sans", Verdana, sans-serif;
-  background-color: #2F3A56;
-  color: white;
 }
 
 .brand {
