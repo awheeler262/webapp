@@ -9,9 +9,16 @@ async function bootstrap() {
 
   app.use(helmet({
     strictTransportSecurity: { maxAge: 63072000, includeSubDomains: true, preload: true },
+    contentSecurityPolicy: {
+      useDefaults: false,
+      directives: { defaultSrc: ["'none'"] },
+    },
+    frameguard: { action: 'deny' },
   }));
   app.use((req, res, next) => {
+    res.setHeader('Content-Type', 'application/json');
     res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Permissions-Policy', 'interest-cohort=()');
     next();
   });
 
