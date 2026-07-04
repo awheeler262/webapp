@@ -5,7 +5,7 @@ phases:
     commands:
       - corepack enable
       - corepack prepare pnpm@11.9.0 --activate
-      - pnpm install --frozen-lockfile
+      - pnpm install --frozen-lockfile --filter web...
   build:
     commands:
       - cd apps/web && pnpm run generate
