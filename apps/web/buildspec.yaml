@@ -1,0 +1,18 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - corepack enable
+      - corepack prepare pnpm@11.9.0 --activate
+      - pnpm install --frozen-lockfile
+  build:
+    commands:
+      - cd apps/web && pnpm run generate
+  post_build:
+    commands:
+      - aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" --paths "/*"
+artifacts:
+  files:
+    - '**/*'
+  base-directory: apps/web/.output/public
