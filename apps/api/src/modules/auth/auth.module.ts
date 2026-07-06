@@ -14,7 +14,11 @@ import { UsersModule } from '../users/users.module';
     JwtModule.register({
       secret: process.env.JWT_SECRET,
       signOptions: {
-        expiresIn: 60 * 60 * 24 * 7, // 7 days in seconds
+        // JWT_EXPIRY is a plain count of seconds (e.g. "3600"), not a duration
+        // string like "1h" — parse it instead of casting so a malformed/missing
+        // value falls back to the default rather than silently misconfiguring
+        // token expiry.
+        expiresIn: Number.parseInt(process.env.JWT_EXPIRY ?? '', 10) || 60 * 60
       },
     }),
   ],

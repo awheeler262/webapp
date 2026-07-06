@@ -4,9 +4,7 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
-  OneToMany,
 } from 'typeorm';
-import { Post } from '../../posts/entities/post.entity';
 
 @Entity('users')
 export class User {
@@ -27,7 +25,4 @@ export class User {
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
-
-  @OneToMany(() => Post, (post) => post.author)
-  posts: Post[];
 }
