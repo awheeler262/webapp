@@ -9,7 +9,7 @@ type JwtPayload = {
   exp?: number
 }
 
-const DEFAULT_MAX_AGE = 60 * 60 * 1 // 24 * 7
+const DEFAULT_MAX_AGE = Number.parseInt(process.env.JWT_EXPIRY ?? '');
 
 function decodeJwt(token: string | null): JwtPayload | null {
   if (!token) return null
