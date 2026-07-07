@@ -1,0 +1,21 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - corepack enable
+      - corepack prepare pnpm@11.9.0 --activate
+      - pnpm install --frozen-lockfile --filter api...
+  build:
+    commands:
+      - pnpm --filter api run build
+      - pnpm --filter api deploy --prod --legacy out/api
+  post_build:
+    commands:
+      - find out/api/dist -name '*.d.ts' -o -name '*.d.ts.map' -o -name '*.js.map' | xargs -r rm -f
+      - rm -rf out/api/node_modules/aws-sdk
+      - cd out/api && zip -r ../../api-lambda.zip dist node_modules package.json
+artifacts:
+  files:
+    - api-lambda.zip
+  discard-paths: yes
