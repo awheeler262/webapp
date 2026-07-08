@@ -9,8 +9,6 @@ type JwtPayload = {
   exp?: number
 }
 
-const DEFAULT_MAX_AGE = Number.parseInt(process.env.JWT_EXPIRY ?? '');
-
 function decodeJwt(token: string | null): JwtPayload | null {
   if (!token) return null
   const rawPayload = token.split('.')[1]
@@ -28,14 +26,11 @@ function decodeUser(token: string | null): AuthUser | null {
   return { email: payload.email ?? '' }
 }
 
-// useCookie's maxAge is captured once, when the ref below is created, so it can't
-// reflect a freshly-issued token's real `exp`. Nuxt writes the cookie asynchronously
-// (via a watcher), so we wait a tick for that write to land, then re-stamp the
-// Expires attribute to match the JWT's own expiry instead of the static fallback.
 async function alignCookieExpiry(token: string) {
   if (!import.meta.client) return
   const payload = decodeJwt(token)
   if (!payload?.exp) return
+  // Wait for Nuxt to create the cookie, then update it.
   await nextTick()
   const expires = new Date(payload.exp * 1000).toUTCString()
   document.cookie = `auth_token=${encodeURIComponent(token)}; path=/; samesite=lax; secure; expires=${expires}`
@@ -46,7 +41,7 @@ export function useAuth() {
     default: () => null,
     sameSite: 'lax',
     secure: true,
-    maxAge: DEFAULT_MAX_AGE
+    maxAge: 60,
   })
   const user = useState<AuthUser | null>('auth_user', () => decodeUser(token.value))
   const isLoggedIn = computed(() => !!token.value)
