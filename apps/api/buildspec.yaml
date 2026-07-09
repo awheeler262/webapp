@@ -14,7 +14,13 @@ phases:
     commands:
       - find out/api/dist -name '*.d.ts' -o -name '*.d.ts.map' -o -name '*.js.map' | xargs -r rm -f
       - rm -rf out/api/node_modules/aws-sdk
-      - cd out/api && zip -r ../../api-lambda.zip dist node_modules package.json
+      # ts-node/typescript/ioredis only end up here because typeorm declares them as
+      # optional peers and something *else* in the workspace (apps/api's own devDependencies,
+      # apps/web's Nuxt fonts cache driver) happens to satisfy that peer — none of them are
+      # ever required by the compiled dist/ output at runtime (postgres-only, no cache module).
+      - find out/api/node_modules/.pnpm -maxdepth 1 \( -iname 'ts-node@*' -o -iname 'typescript@*' -o -iname 'ioredis@*' -o -iname '@ioredis+commands@*' \) -exec rm -rf {} +
+      - rm -rf out/api/node_modules/.pnpm/node_modules/ts-node out/api/node_modules/.pnpm/node_modules/typescript out/api/node_modules/.pnpm/node_modules/ioredis out/api/node_modules/.pnpm/node_modules/@ioredis
+      - cd out/api && zip -ry ../../api-lambda.zip dist node_modules package.json
 artifacts:
   files:
     - api-lambda.zip
