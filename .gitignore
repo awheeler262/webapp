@@ -34,4 +34,7 @@ npm-debug.log*
 webapp.code-workspace
 *.html
 .claude
+aws.md
 notes.md
+scripts/
+utils/
