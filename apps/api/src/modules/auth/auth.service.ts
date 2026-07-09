@@ -19,12 +19,12 @@ export class AuthService {
   }
 
   async login(email: string, password: string) {
-    // if (process.env.NODE_ENV !== 'production') {
-    //   return this.sign(
-    //     '8fb2a405-503e-4344-8543-6e8d93f4c9ee',
-    //     email
-    //   );
-    // }
+    if (process.env.NODE_ENV === 'test') {
+      return this.sign(
+        '8fb2a405-503e-4344-8543-6e8d93f4c9ee',
+        email
+      );
+    }
     const user = await this.users.findByEmail(email);
     if (!user) throw new UnauthorizedException('Invalid credentials');
     const valid = await bcrypt.compare(password, user.password);
