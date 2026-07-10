@@ -4,19 +4,22 @@ import { ExpressAdapter } from '@nestjs/platform-express';
 import express from 'express';
 import { Handler } from 'aws-lambda';
 import { AppModule } from './app.module';
-import { configureHelmet, configureSecurityHeaders, configureCors, configureCookies, configureValidation } from './app.config';
+import { configureHelmet, configureSecurityHeaders, configureCors, configureCookies, configureBodyParser, configureValidation } from './app.config';
 
 let cachedHandler: Handler;
 
 async function bootstrap(): Promise<Handler> {
   const expressApp = express();
-  const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp));
+  // bodyParser:false so only configureBodyParser's JSON-only parser is registered --
+  // see its own comment in app.config.ts.
+  const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), { bodyParser: false });
 
   configureHelmet(app);
   configureSecurityHeaders(app);
   app.setGlobalPrefix('api');
   configureCors(app);
   configureCookies(app);
+  configureBodyParser(app);
   configureValidation(app);
 
   await app.init();
