@@ -1,24 +1,17 @@
-import { isTokenExpired } from '~/composables/useAuth'
-
 const CHECK_INTERVAL_MS = 5000
 
-// Reads document.cookie directly rather than going through useCookie()/useAuth().token:
-// Nuxt's useCookie ref only re-syncs opportunistically (e.g. on navigation, or whenever
-// something else happens to touch it), not on a real background timer -- so relying on
-// it here would inherit that same unreliable timing instead of fixing it.
-function getRawAuthToken(): string | null {
-  const value = document.cookie.match(/(?:^|; )auth_token=([^;]*)/)?.[1]
-  return value ? decodeURIComponent(value) : null
-}
-
+// The token lives only in an httpOnly cookie now -- there's no raw value this
+// app can read to check independently, so expiry is tracked purely via the
+// expiresAt timestamp the server returned at login/me time. That's also no
+// longer a mismatch risk the way it was before: the server sets the cookie's
+// own Max-Age to exactly match the JWT's real exp, so there's a single source
+// of truth for expiry instead of two that could drift apart.
 export default defineNuxtPlugin(() => {
   const route = useRoute()
-  const { clearSession } = useAuth()
+  const { user, expiresAt, clearSession } = useAuth()
 
   setInterval(() => {
-    const raw = getRawAuthToken()
-
-    if (!raw || isTokenExpired(raw)) {
+    if (user.value && expiresAt.value && Date.now() >= expiresAt.value) {
       clearSession()
       if (route.meta.requiresAuth) navigateTo('/')
     }

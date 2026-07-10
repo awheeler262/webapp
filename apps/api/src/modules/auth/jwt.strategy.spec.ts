@@ -1,7 +1,22 @@
 import { UnauthorizedException } from '@nestjs/common';
-import { JwtStrategy } from './jwt.strategy';
+import { JwtStrategy, fromAuthCookie } from './jwt.strategy';
 import { UsersService } from '../users/users.service';
 import { ConfigService } from '../../config/config.service';
+
+describe('fromAuthCookie', () => {
+  it('reads the token from the auth_token cookie', () => {
+    const req = { cookies: { auth_token: 'the-token' } } as any;
+    expect(fromAuthCookie(req)).toBe('the-token');
+  });
+
+  it('returns null when no auth_token cookie is present', () => {
+    expect(fromAuthCookie({ cookies: {} } as any)).toBeNull();
+  });
+
+  it('returns null when cookie-parser has not populated req.cookies at all', () => {
+    expect(fromAuthCookie({} as any)).toBeNull();
+  });
+});
 
 describe('JwtStrategy', () => {
   const originalSecret = process.env.JWT_SECRET;
@@ -60,24 +75,24 @@ describe('JwtStrategy', () => {
   });
 
   describe('validate', () => {
-    it('returns the user when the token subject still exists', async () => {
+    it('returns the user merged with the token exp claim when the subject still exists', async () => {
       const user = { id: '1', email: 'a@b.com' };
       const usersService = { findById: jest.fn().mockResolvedValue(user) } as unknown as UsersService;
       const strategy = new JwtStrategy(usersService, mockConfigService());
 
-      const result = await strategy.validate({ sub: '1', email: 'a@b.com' });
+      const result = await strategy.validate({ sub: '1', email: 'a@b.com', exp: 1234567890 });
 
       expect(usersService.findById).toHaveBeenCalledWith('1');
-      expect(result).toBe(user);
+      expect(result).toEqual({ ...user, tokenExp: 1234567890 });
     });
 
     it('throws UnauthorizedException when the user no longer exists', async () => {
       const usersService = { findById: jest.fn().mockResolvedValue(null) } as unknown as UsersService;
       const strategy = new JwtStrategy(usersService, mockConfigService());
 
-      await expect(strategy.validate({ sub: 'missing', email: 'a@b.com' })).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        strategy.validate({ sub: 'missing', email: 'a@b.com', exp: 1234567890 }),
+      ).rejects.toThrow(UnauthorizedException);
     });
   });
 });

@@ -18,7 +18,7 @@ describe('AuthService', () => {
       providers: [
         AuthService,
         { provide: UsersService, useValue: { findByEmail: jest.fn(), create: jest.fn() } },
-        { provide: JwtService, useValue: { sign: jest.fn() } },
+        { provide: JwtService, useValue: { sign: jest.fn(), decode: jest.fn() } },
       ],
     }).compile();
 
@@ -42,16 +42,21 @@ describe('AuthService', () => {
       expect(usersService.create).not.toHaveBeenCalled();
     });
 
-    it('creates the user and returns a signed token', async () => {
+    it('creates the user and returns a signed token with user info and exp', async () => {
       usersService.findByEmail.mockResolvedValue(null);
       usersService.create.mockResolvedValue({ id: '1', email: 'a@b.com' } as any);
       jwtService.sign.mockReturnValue('signed-token');
+      jwtService.decode.mockReturnValue({ exp: 1234567890 });
 
       const result = await service.register({ email: 'a@b.com', name: 'A', password: 'pw' } as any);
 
       expect(usersService.create).toHaveBeenCalled();
       expect(jwtService.sign).toHaveBeenCalledWith({ sub: '1', email: 'a@b.com' });
-      expect(result).toEqual({ accessToken: 'signed-token' });
+      expect(result).toEqual({
+        accessToken: 'signed-token',
+        user: { id: '1', email: 'a@b.com' },
+        exp: 1234567890,
+      });
     });
   });
 
@@ -59,6 +64,7 @@ describe('AuthService', () => {
     it('outside production, returns a token for the fixed dev user id regardless of credentials', async () => {
       process.env.NODE_ENV = 'test';
       jwtService.sign.mockReturnValue('dev-token');
+      jwtService.decode.mockReturnValue({ exp: 1234567890 });
 
       const result = await service.login('anyone@example.com', 'whatever-password');
 
@@ -67,7 +73,11 @@ describe('AuthService', () => {
         sub: '8fb2a405-503e-4344-8543-6e8d93f4c9ee',
         email: 'anyone@example.com',
       });
-      expect(result).toEqual({ accessToken: 'dev-token' });
+      expect(result).toEqual({
+        accessToken: 'dev-token',
+        user: { id: '8fb2a405-503e-4344-8543-6e8d93f4c9ee', email: 'anyone@example.com' },
+        exp: 1234567890,
+      });
     });
 
     describe('in production', () => {
@@ -92,11 +102,16 @@ describe('AuthService', () => {
         usersService.findByEmail.mockResolvedValue({ id: '1', email: 'a@b.com', password: 'hashed' } as any);
         (bcrypt.compare as jest.Mock).mockResolvedValue(true);
         jwtService.sign.mockReturnValue('real-token');
+        jwtService.decode.mockReturnValue({ exp: 1234567890 });
 
         const result = await service.login('a@b.com', 'correct-pw');
 
         expect(jwtService.sign).toHaveBeenCalledWith({ sub: '1', email: 'a@b.com' });
-        expect(result).toEqual({ accessToken: 'real-token' });
+        expect(result).toEqual({
+          accessToken: 'real-token',
+          user: { id: '1', email: 'a@b.com' },
+          exp: 1234567890,
+        });
       });
     });
   });

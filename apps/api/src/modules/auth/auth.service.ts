@@ -34,6 +34,8 @@ export class AuthService {
 
   private sign(userId: string, email: string) {
     const payload = { sub: userId, email };
-    return { accessToken: this.jwt.sign(payload) };
+    const accessToken = this.jwt.sign(payload);
+    const { exp } = this.jwt.decode(accessToken) as { exp: number };
+    return { accessToken, user: { id: userId, email }, exp };
   }
 }

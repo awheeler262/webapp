@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { configureHelmet, configureSecurityHeaders, configureCors, configureValidation } from './app.config';
+import { configureHelmet, configureSecurityHeaders, configureCors, configureCookies, configureValidation } from './app.config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -10,6 +10,7 @@ async function bootstrap() {
   configureSecurityHeaders(app);
   app.setGlobalPrefix('api');
   configureCors(app);
+  configureCookies(app);
   configureValidation(app);
 
   const port = process.env.PORT || 3001;

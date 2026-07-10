@@ -1,9 +1,11 @@
-import { isTokenExpired } from '~/composables/useAuth'
+export default defineNuxtRouteMiddleware(async (to) => {
+  const { user, expiresAt, clearSession, isLoggedIn, ensureSession } = useAuth()
 
-export default defineNuxtRouteMiddleware((to) => {
-  const { token, clearSession, isLoggedIn } = useAuth()
+  // Must resolve before any isLoggedIn check below -- on the very first
+  // navigation of a fresh page load, nothing has populated user/expiresAt yet.
+  await ensureSession()
 
-  if (token.value && isTokenExpired(token.value)) {
+  if (user.value && expiresAt.value && Date.now() >= expiresAt.value) {
     clearSession()
     if (to.path !== '/') return navigateTo('/')
   }

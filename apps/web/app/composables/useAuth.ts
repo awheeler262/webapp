@@ -1,112 +1,71 @@
-import type { FetchError } from 'ofetch'
-
 type AuthUser = {
+  id: string
   email: string
 }
 
-type JwtPayload = {
-  email?: string
-  exp?: number
-}
-
-function createGuestAccessToken(): string {
-  const now = new Date();
-  const epochSeconds = Math.floor(now.getTime() / 1000);
-  return JSON.stringify({
-    sub: '8fb2a405-503e-4344-8543-6e8d93f4c9ee',
-    email: 'guest@dev.null',
-    iat: epochSeconds,
-    exp: epochSeconds + 60 * 60,
-  });
-}
-
-function checkGuest(token: string | object): JwtPayload | null {
-  if (token instanceof Object) return token as JwtPayload;
-  try {
-    return JSON.parse(token);
-  } catch(err) {
-  }
-  return null;
-}
-
-function decodeJwt(token: string | null): JwtPayload | null {
-  if (!token) return null
-
-  const guestPayload = checkGuest(token);
-  if (guestPayload) return guestPayload;
-
-  const rawPayload = token.split('.')[1]
-  if (!rawPayload) return null
-  try {
-    return JSON.parse(atob(rawPayload))
-  } catch {
-    return null
-  }
-}
-
-function decodeUser(token: string | null): AuthUser | null {
-  const payload = decodeJwt(token)
-  if (!payload) return null
-  return { email: payload.email ?? '' }
-}
-
-export function isTokenExpired(token: string | null): boolean {
-  const payload = decodeJwt(token)
-  if (!payload?.exp) return true
-  return payload.exp * 1000 <= Date.now()
-}
-
-async function alignCookieExpiry(token: string) {
-  if (!import.meta.client) return
-  const payload = decodeJwt(token)
-  if (!payload?.exp) return
-  // Wait for Nuxt to create the cookie, then update it.
-  await nextTick()
-  const expires = new Date(payload.exp * 1000).toUTCString()
-  document.cookie = `auth_token=${encodeURIComponent(token)}; path=/; samesite=lax; secure; expires=${expires}`
+type Session = {
+  user: AuthUser
+  expiresAt: number
 }
 
 export function useAuth() {
-  const expires = new Date();
-  expires.setSeconds(expires.getSeconds() + 60);
-  const token = useCookie<string | null>('auth_token', {
-    default: () => null,
-    sameSite: 'lax',
-    secure: true,
-    expires: expires,
-  })
-  const user = useState<AuthUser | null>('auth_user', () => decodeUser(token.value))
-  const isLoggedIn = computed(() => !!token.value && !isTokenExpired(token.value))
+  const user = useState<AuthUser | null>('auth_user', () => null)
+  const expiresAt = useState<number | null>('auth_expires_at', () => null)
+  const isLoggedIn = computed(() => !!user.value && (!expiresAt.value || Date.now() < expiresAt.value))
 
-  function clearSession() {
-    token.value = null
-    user.value = null
+  function setSession(session: Session | null) {
+    user.value = session?.user ?? null
+    expiresAt.value = session?.expiresAt ?? null
   }
 
+  function clearSession() {
+    setSession(null)
+  }
+
+  // The token itself lives only in an httpOnly cookie now -- this app never
+  // sees or stores it directly, only what the API tells it about the session.
   async function login(email: string, password: string) {
     const $api = useApi()
+    const session = await $api<Session>('/api/auth/login', {
+      method: 'POST',
+      body: { email, password }
+    })
+    setSession(session)
+  }
+
+  // Called on app startup/refresh, since there's no local token to decode
+  // anymore -- ask the server who (if anyone) the cookie identifies. A 401
+  // here just means "not logged in", not an error.
+  async function fetchSession() {
+    const $api = useApi()
     try {
-      const { accessToken } = await $api<{ accessToken: string }>('/api/auth/login', {
-        method: 'POST',
-        body: { email, password }
-      })
-      token.value = accessToken
-      user.value = decodeUser(accessToken)
-      await alignCookieExpiry(accessToken)
-    } catch (err) {
-      const e = err as FetchError
-      console.error(e.status)
-      console.error(e.data)
-      token.value = createGuestAccessToken();
-      user.value = decodeUser(token.value);
-      await alignCookieExpiry(token.value)
+      const session = await $api<Session>('/api/auth/me')
+      setSession(session)
+    } catch {
+      clearSession()
     }
   }
 
-  function logout() {
-    clearSession()
-    navigateTo('/')
+  // The route middleware must never decide isLoggedIn before this first check
+  // has actually resolved. callOnce() (not a plain module-level cached promise --
+  // that's unsafe under SSR, where concurrent requests share the same Node
+  // process/module state) ensures fetchSession() runs exactly once per app
+  // instance: once server-side per request during SSR, and not redundantly
+  // repeated client-side after hydration, while still reusing the result for
+  // later client-side navigations within that same load.
+  function ensureSession() {
+    return callOnce('auth:session', fetchSession)
   }
 
-  return { user, isLoggedIn, login, logout, token, clearSession }
+  async function logout() {
+    const $api = useApi()
+    try {
+      await $api('/api/auth/logout', { method: 'POST' })
+    } finally {
+      clearSession()
+      navigateTo('/')
+    }
+  }
+
+  return { user, isLoggedIn, expiresAt, login, logout, fetchSession, ensureSession, clearSession, setSession }
 }

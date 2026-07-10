@@ -1,5 +1,10 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
+
+export function configureCookies(app: INestApplication) {
+  app.use(cookieParser());
+}
 
 export function configureHelmet(app: INestApplication) {
   app.use(helmet({
@@ -28,6 +33,10 @@ export function configureCors(app: INestApplication) {
     origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    // Needed so the browser sends/accepts the (httpOnly) auth_token cookie
+    // cross-origin in local dev (web on :3000, api on :3001) -- in production
+    // /api/* is same-origin behind CloudFront, so this is a no-op there.
+    credentials: true,
   });
 }
 

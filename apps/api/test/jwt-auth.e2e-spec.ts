@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
+import { configureCookies } from './../src/app.config';
 import { JwtAuthGuard } from './../src/modules/auth/jwt-auth.guard';
 import { UsersService } from './../src/modules/users/users.service';
 
@@ -31,6 +32,7 @@ describe('JwtAuthGuard (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    configureCookies(app);
     await app.init();
 
     jwtService = app.get(JwtService);
@@ -49,7 +51,7 @@ describe('JwtAuthGuard (e2e)', () => {
     await app.close();
   });
 
-  it('rejects a request with no Authorization header', () => {
+  it('rejects a request with no auth_token cookie', () => {
     return request(app.getHttpServer()).get('/test-protected').expect(401);
   });
 
@@ -65,7 +67,7 @@ describe('JwtAuthGuard (e2e)', () => {
 
     return request(app.getHttpServer())
       .get('/test-protected')
-      .set('Authorization', `Bearer ${expiredToken}`)
+      .set('Cookie', [`auth_token=${expiredToken}`])
       .expect(401);
   });
 
@@ -74,7 +76,7 @@ describe('JwtAuthGuard (e2e)', () => {
 
     return request(app.getHttpServer())
       .get('/test-protected')
-      .set('Authorization', `Bearer ${validToken}`)
+      .set('Cookie', [`auth_token=${validToken}`])
       .expect(200)
       .expect({ ok: true });
   });
