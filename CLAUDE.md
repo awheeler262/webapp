@@ -62,6 +62,7 @@ Note: `apps/api`'s jest config sets `rootDir: "src"`, so `--testPathPatterns`/`-
 
 ## Gotchas specific to this repo
 
+- **`aws.md` and `milk.md`** (repo root) are scratch/notes files, not maintained documentation — their contents (including any AWS config, policy values, or setup steps) may be outdated or inaccurate. Don't treat them as a source of truth; verify against actual code/config instead.
 - **Stale incremental build cache**: `apps/api/tsconfig.build.tsbuildinfo` survives `rm -rf dist`. If you delete `dist/` to force a clean rebuild, delete this file too — otherwise TypeScript's incremental cache can skip re-emitting changed files and `nest start --watch` fails with `MODULE_NOT_FOUND`.
 - **`bcrypt`** is a native addon; `pnpm-workspace.yaml`'s `allowBuilds` must list it (it does) or its native binding won't get compiled on install.
 - pnpm's strict `node_modules` means every package imported directly by `apps/api` source must be a direct dependency in `apps/api/package.json` — a package that only arrives transitively (e.g. via `@nestjs/platform-express`) can't be `import`ed directly even though it resolves under a plain hoisted install.

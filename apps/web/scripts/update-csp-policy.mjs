@@ -2,26 +2,13 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { buildCsp } from '../csp-policy.mjs'
 
 const POLICY_NAME = process.env.CLOUDFRONT_RESPONSE_HEADERS_POLICY_NAME || 'webapp-response-headers'
 const HASHES_FILE = join(import.meta.dirname, '..', '.output', 'csp-hashes.json')
 
 function aws(args) {
   return JSON.parse(execFileSync('aws', args, { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 }))
-}
-
-function replaceDirectiveSources(csp, directive, hashes) {
-  const parts = csp.split(';').map(p => p.trim()).filter(Boolean)
-  let found = false
-  const updated = parts.map(part => {
-    const [name, ...values] = part.split(/\s+/)
-    if (name !== directive) return part
-    found = true
-    const kept = values.filter(v => v !== "'unsafe-inline'")
-    return [name, ...kept, ...hashes].join(' ')
-  })
-  if (!found) updated.push([directive, "'self'", ...hashes].join(' '))
-  return updated.join('; ') + ';'
 }
 
 const hashes = JSON.parse(readFileSync(HASHES_FILE, 'utf8'))
@@ -44,9 +31,12 @@ if (!cspConfig) {
   throw new Error(`Policy "${POLICY_NAME}" has no SecurityHeadersConfig.ContentSecurityPolicy to update`)
 }
 
-let csp = cspConfig.ContentSecurityPolicy
-csp = replaceDirectiveSources(csp, 'script-src', hashes['script-src'])
-csp = replaceDirectiveSources(csp, 'style-src', hashes['style-src'])
+// Full overwrite -- csp-policy.mjs is the only source of truth for the policy's
+// content now, not whatever happens to already be live on this CloudFront policy.
+const csp = buildCsp({
+  scriptSrcHashes: hashes['script-src'],
+  styleSrcHashes: hashes['style-src']
+})
 cspConfig.ContentSecurityPolicy = csp
 
 const tmpDir = mkdtempSync(join(tmpdir(), 'csp-policy-'))
