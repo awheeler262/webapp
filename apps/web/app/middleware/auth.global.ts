@@ -5,7 +5,8 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // navigation of a fresh page load, nothing has populated user/expiresAt yet.
   await ensureSession()
 
-  if (user.value && expiresAt.value && Date.now() >= expiresAt.value) {
+  // Missing expiresAt counts as expired too (fail closed) -- see useAuth.ts.
+  if (user.value && (!expiresAt.value || Date.now() >= expiresAt.value)) {
     clearSession()
     if (to.path !== '/') return navigateTo('/')
   }

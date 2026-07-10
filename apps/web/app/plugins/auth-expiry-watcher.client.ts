@@ -11,7 +11,8 @@ export default defineNuxtPlugin(() => {
   const { user, expiresAt, clearSession } = useAuth()
 
   setInterval(() => {
-    if (user.value && expiresAt.value && Date.now() >= expiresAt.value) {
+    // Missing expiresAt counts as expired too (fail closed) -- see useAuth.ts.
+    if (user.value && (!expiresAt.value || Date.now() >= expiresAt.value)) {
       clearSession()
       if (route.meta.requiresAuth) navigateTo('/')
     }

@@ -11,7 +11,10 @@ type Session = {
 export function useAuth() {
   const user = useState<AuthUser | null>('auth_user', () => null)
   const expiresAt = useState<number | null>('auth_expires_at', () => null)
-  const isLoggedIn = computed(() => !!user.value && (!expiresAt.value || Date.now() < expiresAt.value))
+  // A missing expiresAt is treated as expired (fail closed), not "never expires" --
+  // every real session from the API always includes it, so its absence means
+  // something is wrong with the session data, not that it's permanently valid.
+  const isLoggedIn = computed(() => !!user.value && !!expiresAt.value && Date.now() < expiresAt.value)
 
   function setSession(session: Session | null) {
     user.value = session?.user ?? null
