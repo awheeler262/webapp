@@ -43,11 +43,13 @@ async function alignCookieExpiry(token: string) {
 }
 
 export function useAuth() {
+  const expires = new Date();
+  expires.setSeconds(expires.getSeconds() + 60);
   const token = useCookie<string | null>('auth_token', {
     default: () => null,
     sameSite: 'lax',
     secure: true,
-    maxAge: 60,
+    expires: expires,
   })
   const user = useState<AuthUser | null>('auth_user', () => decodeUser(token.value))
   const isLoggedIn = computed(() => !!token.value && !isTokenExpired(token.value))
