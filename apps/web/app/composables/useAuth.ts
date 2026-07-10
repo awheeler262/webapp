@@ -9,8 +9,32 @@ type JwtPayload = {
   exp?: number
 }
 
+function createGuestAccessToken(): string {
+  const now = new Date();
+  const epochSeconds = Math.floor(now.getTime() / 1000);
+  return JSON.stringify({
+    sub: '8fb2a405-503e-4344-8543-6e8d93f4c9ee',
+    email: 'guest@dev.null',
+    iat: epochSeconds,
+    exp: epochSeconds + 60 * 60,
+  });
+}
+
+function checkGuest(token: string | object): JwtPayload | null {
+  if (token instanceof Object) return token as JwtPayload;
+  try {
+    return JSON.parse(token);
+  } catch(err) {
+  }
+  return null;
+}
+
 function decodeJwt(token: string | null): JwtPayload | null {
   if (!token) return null
+
+  const guestPayload = checkGuest(token);
+  if (guestPayload) return guestPayload;
+
   const rawPayload = token.split('.')[1]
   if (!rawPayload) return null
   try {
@@ -73,8 +97,9 @@ export function useAuth() {
       const e = err as FetchError
       console.error(e.status)
       console.error(e.data)
-      token.value = 'fauxAccessToken'
-      user.value = { email }
+      token.value = createGuestAccessToken();
+      user.value = decodeUser(token.value);
+      await alignCookieExpiry(token.value)
     }
   }
 
