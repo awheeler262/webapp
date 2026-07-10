@@ -1,11 +1,7 @@
 <script setup lang="ts">
 import type { FetchError } from 'ofetch'
 
-const { isLoggedIn, user } = useAuth()
-
-if (!isLoggedIn.value) {
-  await navigateTo('/')
-}
+definePageMeta({ requiresAuth: true })
 
 async function test() {
   const $api = useApi()

@@ -4,6 +4,7 @@ const { user, isLoggedIn, login, logout } = useAuth()
 const showLoginForm = ref(false)
 const email = ref('')
 const password = ref('')
+const showPassword = ref(false)
 const error = ref('')
 const loading = ref(false)
 
@@ -15,6 +16,7 @@ async function onSubmit() {
     showLoginForm.value = false
     email.value = ''
     password.value = ''
+    showPassword.value = false
   } catch (err: any) {
     error.value = err?.data?.message || 'Invalid email or password'
   } finally {
@@ -47,7 +49,21 @@ function onLogout() {
         <button class="btn" @click="showLoginForm = !showLoginForm">Login</button>
         <form v-if="showLoginForm" class="login-form" @submit.prevent="onSubmit">
           <input v-model="email" type="email" placeholder="Email" autocomplete="username" required />
-          <input v-model="password" type="password" placeholder="Password" autocomplete="current-password" required/>
+          <div class="password-field">
+            <input
+              v-model="password"
+              :type="showPassword ? 'text' : 'password'"
+              placeholder="Password"
+              autocomplete="current-password"
+              required
+            />
+            <button
+              type="button"
+              class="toggle-password"
+              :aria-label="showPassword ? 'Hide password' : 'Show password'"
+              @click="showPassword = !showPassword"
+            >{{ showPassword ? 'Hide' : 'Show' }}</button>
+          </div>
           <button class="btn btn-primary" type="submit" :disabled="loading">
             {{ loading ? 'Logging in...' : 'Sign in' }}
           </button>
@@ -140,6 +156,29 @@ function onLogout() {
   padding: 0.5rem;
   border: 1px solid #ccc;
   border-radius: 4px;
+}
+
+.password-field {
+  position: relative;
+}
+
+.password-field input {
+  box-sizing: border-box;
+  width: 100%;
+  padding-right: 3rem;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  padding: 0;
+  color: #666;
+  font-size: 0.8rem;
+  cursor: pointer;
 }
 
 .error {

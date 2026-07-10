@@ -26,6 +26,12 @@ function decodeUser(token: string | null): AuthUser | null {
   return { email: payload.email ?? '' }
 }
 
+export function isTokenExpired(token: string | null): boolean {
+  const payload = decodeJwt(token)
+  if (!payload?.exp) return true
+  return payload.exp * 1000 <= Date.now()
+}
+
 async function alignCookieExpiry(token: string) {
   if (!import.meta.client) return
   const payload = decodeJwt(token)
@@ -44,7 +50,12 @@ export function useAuth() {
     maxAge: 60,
   })
   const user = useState<AuthUser | null>('auth_user', () => decodeUser(token.value))
-  const isLoggedIn = computed(() => !!token.value)
+  const isLoggedIn = computed(() => !!token.value && !isTokenExpired(token.value))
+
+  function clearSession() {
+    token.value = null
+    user.value = null
+  }
 
   async function login(email: string, password: string) {
     const $api = useApi()
@@ -66,10 +77,9 @@ export function useAuth() {
   }
 
   function logout() {
-    token.value = null
-    user.value = null
+    clearSession()
     navigateTo('/')
   }
 
-  return { user, isLoggedIn, login, logout }
+  return { user, isLoggedIn, login, logout, token, clearSession }
 }
