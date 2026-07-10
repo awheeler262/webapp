@@ -7,3 +7,5 @@ allowBuilds:
   esbuild: false
   unrs-resolver: true
 autoInstallPeers: false
+overrides:
+  esbuild: ^0.28.1
