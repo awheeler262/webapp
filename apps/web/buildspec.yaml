@@ -11,7 +11,10 @@ phases:
       - cd apps/web && pnpm run generate
   post_build:
     commands:
-      - cd apps/web && node scripts/update-csp-policy.mjs
+      # CodeBuild carries the shell's cwd over between phases -- the build phase's
+      # `cd apps/web` leaves us already inside apps/web, so a relative `cd apps/web`
+      # here would look for apps/web/apps/web. Anchor to the source root instead.
+      - cd "$CODEBUILD_SRC_DIR/apps/web" && node scripts/update-csp-policy.mjs
       - aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" --paths "/*"
 artifacts:
   files:
