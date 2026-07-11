@@ -12,19 +12,24 @@ function aws(args) {
 }
 
 // get-response-headers-policy represents optional security-header blocks that
-// have never been configured (e.g. XSSProtection, FrameOptions) as `null` rather
-// than omitting the key. update-response-headers-policy's param validator rejects
-// `null` there -- it wants the block fully populated or absent -- so round-tripping
-// the GET response straight into UPDATE fails on any policy that doesn't configure
-// every optional block. Stripping nulls restores "absent", matching what was
+// have never been configured (e.g. XSSProtection, FrameOptions) as either `null`
+// or an empty `{}` (CloudFront's API is XML-derived under the hood, and an unset
+// nested struct can come back as an empty element rather than an absent one).
+// update-response-headers-policy's param validator rejects both -- it wants the
+// block fully populated or the key absent entirely -- so round-tripping the GET
+// response straight into UPDATE fails on any policy that doesn't configure every
+// optional block. Pruning both forms restores "absent", matching what was
 // actually live before this script touched it.
-function stripNulls(value) {
-  if (Array.isArray(value)) return value.map(stripNulls)
+function pruneUnset(value) {
+  if (Array.isArray(value)) return value.map(pruneUnset)
   if (value !== null && typeof value === 'object') {
     const result = {}
     for (const [key, val] of Object.entries(value)) {
       if (val === null) continue
-      result[key] = stripNulls(val)
+      const cleaned = pruneUnset(val)
+      const isEmptyObject = cleaned !== null && typeof cleaned === 'object' && !Array.isArray(cleaned) && Object.keys(cleaned).length === 0
+      if (isEmptyObject) continue
+      result[key] = cleaned
     }
     return result
   }
@@ -46,6 +51,11 @@ const current = aws(['cloudfront', 'get-response-headers-policy', '--id', policy
 const etag = current.ETag
 const config = current.ResponseHeadersPolicy.ResponseHeadersPolicyConfig
 
+// Temporary diagnostic -- if update-response-headers-policy still rejects the
+// payload after pruneUnset, this shows exactly what shape SecurityHeadersConfig's
+// unconfigured blocks actually have in this account, instead of guessing again.
+console.log('SecurityHeadersConfig as fetched:', JSON.stringify(config.SecurityHeadersConfig))
+
 const cspConfig = config.SecurityHeadersConfig?.ContentSecurityPolicy
 if (!cspConfig) {
   throw new Error(`Policy "${POLICY_NAME}" has no SecurityHeadersConfig.ContentSecurityPolicy to update`)
@@ -61,7 +71,9 @@ cspConfig.ContentSecurityPolicy = csp
 
 const tmpDir = mkdtempSync(join(tmpdir(), 'csp-policy-'))
 const configFile = join(tmpDir, 'response-headers-policy-config.json')
-writeFileSync(configFile, JSON.stringify(stripNulls(config)))
+const cleanConfig = pruneUnset(config)
+console.log('SecurityHeadersConfig after pruning:', JSON.stringify(cleanConfig.SecurityHeadersConfig))
+writeFileSync(configFile, JSON.stringify(cleanConfig))
 
 execFileSync('aws', [
   'cloudfront', 'update-response-headers-policy',
