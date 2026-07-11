@@ -11,6 +11,26 @@ function aws(args) {
   return JSON.parse(execFileSync('aws', args, { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 }))
 }
 
+// get-response-headers-policy represents optional security-header blocks that
+// have never been configured (e.g. XSSProtection, FrameOptions) as `null` rather
+// than omitting the key. update-response-headers-policy's param validator rejects
+// `null` there -- it wants the block fully populated or absent -- so round-tripping
+// the GET response straight into UPDATE fails on any policy that doesn't configure
+// every optional block. Stripping nulls restores "absent", matching what was
+// actually live before this script touched it.
+function stripNulls(value) {
+  if (Array.isArray(value)) return value.map(stripNulls)
+  if (value !== null && typeof value === 'object') {
+    const result = {}
+    for (const [key, val] of Object.entries(value)) {
+      if (val === null) continue
+      result[key] = stripNulls(val)
+    }
+    return result
+  }
+  return value
+}
+
 const hashes = JSON.parse(readFileSync(HASHES_FILE, 'utf8'))
 
 const listing = aws(['cloudfront', 'list-response-headers-policies', '--type', 'custom'])
@@ -41,7 +61,7 @@ cspConfig.ContentSecurityPolicy = csp
 
 const tmpDir = mkdtempSync(join(tmpdir(), 'csp-policy-'))
 const configFile = join(tmpDir, 'response-headers-policy-config.json')
-writeFileSync(configFile, JSON.stringify(config))
+writeFileSync(configFile, JSON.stringify(stripNulls(config)))
 
 execFileSync('aws', [
   'cloudfront', 'update-response-headers-policy',
