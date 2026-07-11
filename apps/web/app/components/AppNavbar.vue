@@ -18,7 +18,13 @@ async function onSubmit() {
     password.value = ''
     showPassword.value = false
   } catch (err: any) {
-    error.value = err?.data?.message || 'Invalid email or password'
+    if (err?.statusCode === 401) {
+      error.value = 'Invalid email or password';
+    } else if (err?.statusCode === 500) {
+      error.value = 'Server unavailable';
+    } else {
+      error.value = `${err?.statusCode || 0}: ${err?.statusMessage || 'Unknown error'}`
+    }
   } finally {
     loading.value = false
   }
