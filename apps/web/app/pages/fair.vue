@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import type { FetchError } from 'ofetch'
 
-definePageMeta({ requiresAuth: true })
+// No requiresAuth here on purpose -- this page is currently just static demo
+// data with no real backend behind it (see root README: /api/fair is
+// intentionally unbuilt, a real implementation would call the Claude API per
+// request and cost money). There's nothing here to protect yet, so don't gate
+// it client-side. Once a real /api/fair endpoint exists, reconsider gating at
+// that point -- likely requiring login for the cost-incurring "Analyze" action
+// specifically, rather than the whole page.
+// definePageMeta({ requiresAuth: true })
+definePageMeta({ requiresAuth: false })
 
 async function test() {
   const $api = useApi()
