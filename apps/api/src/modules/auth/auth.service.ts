@@ -19,7 +19,7 @@ export class AuthService {
   ) {}
 
   async register(dto: CreateUserDto) {
-    if (this.config.isProduction()) throw new ForbiddenException();
+    if (!this.config.isRegistrationAllowed()) throw new ForbiddenException();
     const existing = await this.users.findByEmail(dto.email);
     if (existing) throw new ConflictException('Email already in use');
     // create() always either resolves with the saved user or throws -- it never
@@ -29,7 +29,7 @@ export class AuthService {
   }
 
   async login(email: string, password: string) {
-    if (this.config.isTest()) {
+    if (this.config.isDevLoginBypassEnabled()) {
       return this.sign(
         '8fb2a405-503e-4344-8543-6e8d93f4c9ee',
         email

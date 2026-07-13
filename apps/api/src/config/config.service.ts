@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 
+const REGISTRATION_ALLOWED_ENVS = new Set(['development', 'test', 'e2e']);
+
 @Injectable()
 export class ConfigService {
   private jwtSecret?: Promise<string>;
@@ -9,8 +11,23 @@ export class ConfigService {
     return process.env.NODE_ENV === 'production';
   }
 
-  isTest(): boolean {
-    return process.env.NODE_ENV === 'test';
+  // Requires an explicit, dedicated opt-in rather than keying off NODE_ENV alone --
+  // NODE_ENV=test is trivially easy to end up with by accident (it already happened
+  // once: a stray ".env" comment left NODE_ENV=test in what was meant to be a
+  // production config), and that alone must never be enough to sign a token for
+  // any email with no password check. Requiring !isProduction() too means even a
+  // stray ALLOW_DEV_LOGIN_BYPASS=true in a real deploy is still blocked as long as
+  // NODE_ENV=production is set correctly -- two independent mistakes would have to
+  // align, not just one.
+  isDevLoginBypassEnabled(): boolean {
+    return process.env.ALLOW_DEV_LOGIN_BYPASS === 'true' && !this.isProduction();
+  }
+
+  // Allowlists known-safe environments rather than denylisting 'production' --
+  // an unrecognized/misconfigured NODE_ENV now fails closed (registration blocked)
+  // instead of failing open (registration silently allowed).
+  isRegistrationAllowed(): boolean {
+    return REGISTRATION_ALLOWED_ENVS.has(process.env.NODE_ENV ?? 'development');
   }
 
   getJwtSecret(): Promise<string> {

@@ -24,7 +24,8 @@ describe('AuthService', () => {
           provide: ConfigService,
           useValue: {
             isProduction: jest.fn().mockReturnValue(false),
-            isTest: jest.fn().mockReturnValue(false),
+            isDevLoginBypassEnabled: jest.fn().mockReturnValue(false),
+            isRegistrationAllowed: jest.fn().mockReturnValue(true),
           },
         },
       ],
@@ -41,8 +42,8 @@ describe('AuthService', () => {
   });
 
   describe('register', () => {
-    it('throws ForbiddenException in production', async () => {
-      configService.isProduction.mockReturnValue(true);
+    it('throws ForbiddenException when registration is not allowed', async () => {
+      configService.isRegistrationAllowed.mockReturnValue(false);
 
       await expect(
         service.register({ email: 'a@b.com', name: 'A', password: 'pw' } as any),
@@ -78,8 +79,8 @@ describe('AuthService', () => {
   });
 
   describe('login', () => {
-    it('outside production, returns a token for the fixed dev user id regardless of credentials', async () => {
-      configService.isTest.mockReturnValue(true);
+    it('when the dev login bypass is enabled, returns a token for the fixed dev user id regardless of credentials', async () => {
+      configService.isDevLoginBypassEnabled.mockReturnValue(true);
       jwtService.sign.mockReturnValue('dev-token');
       jwtService.decode.mockReturnValue({ exp: 1234567890 });
 
@@ -97,7 +98,7 @@ describe('AuthService', () => {
       });
     });
 
-    describe('in production', () => {
+    describe('when the dev login bypass is disabled', () => {
       it('throws UnauthorizedException if no user matches the email', async () => {
         usersService.findByEmail.mockResolvedValue(null);
 

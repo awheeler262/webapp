@@ -23,7 +23,9 @@ async function onSubmit() {
     } else if (err.statusCode === 401) {
       error.value = 'Invalid email or password';
     } else {
-      error.value = `${err.statusCode}: ${err.statusMessage}`;
+      // Deliberately generic -- don't echo the backend's raw error text (e.g.
+      // "Database unavailable") to an unauthenticated user.
+      error.value = 'Something went wrong. Please try again.';
     }
   } finally {
     loading.value = false

@@ -7,6 +7,7 @@ describe('ConfigService', () => {
   let service: ConfigService;
   const originalNodeEnv = process.env.NODE_ENV;
   const originalJwtSecret = process.env.JWT_SECRET;
+  const originalDevLoginBypass = process.env.ALLOW_DEV_LOGIN_BYPASS;
 
   beforeEach(() => {
     service = new ConfigService();
@@ -16,6 +17,7 @@ describe('ConfigService', () => {
   afterEach(() => {
     process.env.NODE_ENV = originalNodeEnv;
     process.env.JWT_SECRET = originalJwtSecret;
+    process.env.ALLOW_DEV_LOGIN_BYPASS = originalDevLoginBypass;
   });
 
   describe('isProduction', () => {
@@ -30,15 +32,40 @@ describe('ConfigService', () => {
     });
   });
 
-  describe('isTest', () => {
-    it('is true when NODE_ENV is test', () => {
+  describe('isDevLoginBypassEnabled', () => {
+    it('is true when the flag is set and NODE_ENV is not production', () => {
+      process.env.ALLOW_DEV_LOGIN_BYPASS = 'true';
       process.env.NODE_ENV = 'test';
-      expect(service.isTest()).toBe(true);
+      expect(service.isDevLoginBypassEnabled()).toBe(true);
     });
 
-    it('is false otherwise', () => {
+    it('is false when the flag is not set, regardless of NODE_ENV', () => {
+      delete process.env.ALLOW_DEV_LOGIN_BYPASS;
+      process.env.NODE_ENV = 'test';
+      expect(service.isDevLoginBypassEnabled()).toBe(false);
+    });
+
+    it('is false when the flag is set but NODE_ENV is production (defense in depth)', () => {
+      process.env.ALLOW_DEV_LOGIN_BYPASS = 'true';
       process.env.NODE_ENV = 'production';
-      expect(service.isTest()).toBe(false);
+      expect(service.isDevLoginBypassEnabled()).toBe(false);
+    });
+  });
+
+  describe('isRegistrationAllowed', () => {
+    it('is true for known-safe environments', () => {
+      process.env.NODE_ENV = 'development';
+      expect(service.isRegistrationAllowed()).toBe(true);
+    });
+
+    it('is false in production', () => {
+      process.env.NODE_ENV = 'production';
+      expect(service.isRegistrationAllowed()).toBe(false);
+    });
+
+    it('fails closed for an unrecognized/misconfigured NODE_ENV', () => {
+      process.env.NODE_ENV = 'staging';
+      expect(service.isRegistrationAllowed()).toBe(false);
     });
   });
 
