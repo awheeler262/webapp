@@ -1,14 +1,18 @@
 import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { DataSource } from 'typeorm';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
 import { configureCookies } from './../src/app.config';
 import { UsersService } from './../src/modules/users/users.service';
+import { User } from './../src/modules/users/entities/user.entity';
+import { DATA_SOURCE } from './../src/database/database.module';
 
 describe('Auth cookie flow (e2e)', () => {
   let app: INestApplication<App>;
   let usersService: UsersService;
+  let dataSource: DataSource;
   const email = `auth-cookie-e2e-${Date.now()}@example.com`;
   const password = 'plaintext-password-123';
   const originalNodeEnv = process.env.NODE_ENV;
@@ -29,12 +33,17 @@ describe('Auth cookie flow (e2e)', () => {
     await app.init();
 
     usersService = app.get(UsersService);
+    dataSource = app.get(DATA_SOURCE);
     await usersService.create({ email, name: 'Auth Cookie E2E', password } as any);
   });
 
   afterAll(async () => {
-    await (usersService as any).usersRepository.delete({ email });
+    await dataSource.getRepository(User).delete({ email });
     await app.close();
+    // AppDataSource is a manually-provided value, not a TypeOrmModule-managed
+    // connection -- app.close() doesn't know to tear it down, so the open pg
+    // pool would otherwise keep this Jest worker from exiting cleanly.
+    await dataSource.destroy();
     process.env.NODE_ENV = originalNodeEnv;
   });
 

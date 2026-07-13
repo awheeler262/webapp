@@ -1,4 +1,9 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { CreateUserDto } from '@my-app/validation';
@@ -12,9 +17,11 @@ export class AuthService {
   ) {}
 
   async register(dto: CreateUserDto) {
+    if (process.env.NODE_ENV === 'production') throw new ForbiddenException();
     const existing = await this.users.findByEmail(dto.email);
     if (existing) throw new ConflictException('Email already in use');
     const user = await this.users.create(dto);
+    if (!user) throw new UnauthorizedException('Invalid credentials');
     return this.sign(user.id, user.email);
   }
 

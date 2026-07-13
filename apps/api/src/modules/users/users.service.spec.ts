@@ -1,31 +1,36 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
+import { ServiceUnavailableException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from './users.service';
 import { User } from './entities/user.entity';
+import { DATA_SOURCE } from '../../database/database.module';
 
 describe('UsersService', () => {
   let service: UsersService;
   let repository: jest.Mocked<Repository<User>>;
 
   beforeEach(async () => {
+    repository = {
+      create: jest.fn(),
+      save: jest.fn(),
+      findOne: jest.fn(),
+    } as unknown as jest.Mocked<Repository<User>>;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsersService,
         {
-          provide: getRepositoryToken(User),
+          provide: DATA_SOURCE,
           useValue: {
-            create: jest.fn(),
-            save: jest.fn(),
-            findOne: jest.fn(),
+            isInitialized: true,
+            getRepository: jest.fn().mockReturnValue(repository),
           },
         },
       ],
     }).compile();
 
     service = module.get(UsersService);
-    repository = module.get(getRepositoryToken(User));
   });
 
   afterEach(() => {
@@ -112,6 +117,33 @@ describe('UsersService', () => {
         select: { id: true, email: true, name: true, createdAt: true },
       });
       expect(result).toBe(user);
+    });
+  });
+
+  // Covers a connection that was live (isInitialized stays true) but has since
+  // died -- getRepo()/ensureInitialized never sees this, only the query call does.
+  describe('when the database becomes unavailable mid-connection', () => {
+    it('reports findByEmail as a clean 503 instead of the raw connectivity error', async () => {
+      repository.findOne.mockRejectedValue({ code: 'ECONNREFUSED' });
+
+      await expect(service.findByEmail('alice@example.com')).rejects.toThrow(ServiceUnavailableException);
+    });
+
+    it('reports create as a clean 503 instead of the raw connectivity error', async () => {
+      const dto = { email: 'alice@example.com', name: 'Alice', password: 'plaintext-pw' };
+      repository.create.mockReturnValue({} as User);
+      repository.save.mockRejectedValue({ driverError: { code: '08006' } });
+
+      await expect(service.create(dto as any)).rejects.toThrow(ServiceUnavailableException);
+    });
+
+    it('does not reclassify a genuine application-level error (e.g. a unique-constraint race)', async () => {
+      const dto = { email: 'alice@example.com', name: 'Alice', password: 'plaintext-pw' };
+      const conflictError = { code: '23505', message: 'duplicate key value' };
+      repository.create.mockReturnValue({} as User);
+      repository.save.mockRejectedValue(conflictError);
+
+      await expect(service.create(dto as any)).rejects.toBe(conflictError);
     });
   });
 });

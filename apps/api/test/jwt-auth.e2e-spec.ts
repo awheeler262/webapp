@@ -1,12 +1,15 @@
 import { Controller, Get, INestApplication, UseGuards } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
+import { DataSource } from 'typeorm';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
 import { configureCookies } from './../src/app.config';
 import { JwtAuthGuard } from './../src/modules/auth/jwt-auth.guard';
 import { UsersService } from './../src/modules/users/users.service';
+import { User } from './../src/modules/users/entities/user.entity';
+import { DATA_SOURCE } from './../src/database/database.module';
 
 // Temporary until the app has actual endpoint to guard.
 @Controller('test-protected')
@@ -22,6 +25,7 @@ describe('JwtAuthGuard (e2e)', () => {
   let app: INestApplication<App>;
   let jwtService: JwtService;
   let usersService: UsersService;
+  let dataSource: DataSource;
   let realUserId: string;
   const email = `jwt-e2e-${Date.now()}@example.com`;
 
@@ -37,6 +41,7 @@ describe('JwtAuthGuard (e2e)', () => {
 
     jwtService = app.get(JwtService);
     usersService = app.get(UsersService);
+    dataSource = app.get(DATA_SOURCE);
 
     const user = await usersService.create({
       email,
@@ -47,8 +52,12 @@ describe('JwtAuthGuard (e2e)', () => {
   });
 
   afterAll(async () => {
-    await (usersService as any).usersRepository.delete({ email });
+    await dataSource.getRepository(User).delete({ email });
     await app.close();
+    // AppDataSource is a manually-provided value, not a TypeOrmModule-managed
+    // connection -- app.close() doesn't know to tear it down, so the open pg
+    // pool would otherwise keep this Jest worker from exiting cleanly.
+    await dataSource.destroy();
   });
 
   it('rejects a request with no auth_token cookie', () => {

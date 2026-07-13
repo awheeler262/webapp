@@ -17,9 +17,11 @@ async function bootstrap() {
   configureBodyParser(app);
   configureValidation(app);
 
+  const env = process.env.NODE_ENV || 'unknown';
   const port = process.env.PORT || 3001;
   await app.listen(port);
-  console.log(`API running on http://localhost:${port}`);
+  const url = await app.getUrl();
+  console.log(`API running on ${url} in ${env}`);
 }
 
 bootstrap();
