@@ -8,8 +8,8 @@ import { AppModule } from './../src/app.module';
 import { configureCookies } from './../src/app.config';
 import { JwtAuthGuard } from './../src/modules/auth/jwt-auth.guard';
 import { UsersService } from './../src/modules/users/users.service';
-import { User } from './../src/modules/users/entities/user.entity';
 import { DATA_SOURCE } from './../src/database/database.module';
+import { cleanupTestUser } from './utils/cleanup-test-user';
 
 // Temporary until the app has actual endpoint to guard.
 @Controller('test-protected')
@@ -52,12 +52,7 @@ describe('JwtAuthGuard (e2e)', () => {
   });
 
   afterAll(async () => {
-    await dataSource.getRepository(User).delete({ email });
-    await app.close();
-    // AppDataSource is a manually-provided value, not a TypeOrmModule-managed
-    // connection -- app.close() doesn't know to tear it down, so the open pg
-    // pool would otherwise keep this Jest worker from exiting cleanly.
-    await dataSource.destroy();
+    await cleanupTestUser(dataSource, email, app);
   });
 
   it('rejects a request with no auth_token cookie', () => {

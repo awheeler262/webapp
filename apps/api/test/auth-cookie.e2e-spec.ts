@@ -6,8 +6,8 @@ import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
 import { configureCookies } from './../src/app.config';
 import { UsersService } from './../src/modules/users/users.service';
-import { User } from './../src/modules/users/entities/user.entity';
 import { DATA_SOURCE } from './../src/database/database.module';
+import { cleanupTestUser } from './utils/cleanup-test-user';
 
 describe('Auth cookie flow (e2e)', () => {
   let app: INestApplication<App>;
@@ -38,12 +38,7 @@ describe('Auth cookie flow (e2e)', () => {
   });
 
   afterAll(async () => {
-    await dataSource.getRepository(User).delete({ email });
-    await app.close();
-    // AppDataSource is a manually-provided value, not a TypeOrmModule-managed
-    // connection -- app.close() doesn't know to tear it down, so the open pg
-    // pool would otherwise keep this Jest worker from exiting cleanly.
-    await dataSource.destroy();
+    await cleanupTestUser(dataSource, email, app);
     process.env.NODE_ENV = originalNodeEnv;
   });
 

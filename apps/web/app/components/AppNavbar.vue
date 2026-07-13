@@ -19,7 +19,7 @@ async function onSubmit() {
     showPassword.value = false
   } catch (err: any) {
     if (!err?.statusCode) {
-      error.value = '503 Service Unavailable';
+      error.value = 'Network error — check your connection';
     } else if (err.statusCode === 401) {
       error.value = 'Invalid email or password';
     } else {

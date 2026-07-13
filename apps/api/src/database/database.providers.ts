@@ -40,7 +40,9 @@ const NODE_CONNECTIVITY_CODES = new Set([
 // without misreporting genuine application-level errors (e.g. a unique-constraint
 // violation) as "database unavailable". Duck-typed on `code`/`driverError.code`
 // rather than instanceof-checking TypeORM's error classes, so it doesn't depend on
-// exactly how a given failure got wrapped.
+// exactly how a given failure got wrapped. Re-verify this against a real connection
+// failure after upgrading typeorm/pg, in case a future version wraps or codes these
+// differently.
 export function isConnectivityError(err: unknown): boolean {
   const code = (err as { code?: unknown })?.code
     ?? (err as { driverError?: { code?: unknown } })?.driverError?.code;

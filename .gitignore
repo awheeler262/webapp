@@ -36,5 +36,5 @@ webapp.code-workspace
 .claude
 aws.md
 notes.md
-scripts/
-utils/
+/scripts/
+/utils/

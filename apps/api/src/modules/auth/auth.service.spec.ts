@@ -1,9 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
+import { ConfigService } from '../../config/config.service';
 
 jest.mock('bcrypt');
 
@@ -11,7 +12,7 @@ describe('AuthService', () => {
   let service: AuthService;
   let usersService: jest.Mocked<UsersService>;
   let jwtService: jest.Mocked<JwtService>;
-  const originalNodeEnv = process.env.NODE_ENV;
+  let configService: jest.Mocked<ConfigService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -19,20 +20,36 @@ describe('AuthService', () => {
         AuthService,
         { provide: UsersService, useValue: { findByEmail: jest.fn(), create: jest.fn() } },
         { provide: JwtService, useValue: { sign: jest.fn(), decode: jest.fn() } },
+        {
+          provide: ConfigService,
+          useValue: {
+            isProduction: jest.fn().mockReturnValue(false),
+            isTest: jest.fn().mockReturnValue(false),
+          },
+        },
       ],
     }).compile();
 
     service = module.get(AuthService);
     usersService = module.get(UsersService);
     jwtService = module.get(JwtService);
+    configService = module.get(ConfigService);
   });
 
   afterEach(() => {
     jest.clearAllMocks();
-    process.env.NODE_ENV = originalNodeEnv;
   });
 
   describe('register', () => {
+    it('throws ForbiddenException in production', async () => {
+      configService.isProduction.mockReturnValue(true);
+
+      await expect(
+        service.register({ email: 'a@b.com', name: 'A', password: 'pw' } as any),
+      ).rejects.toThrow(ForbiddenException);
+      expect(usersService.findByEmail).not.toHaveBeenCalled();
+    });
+
     it('throws ConflictException if the email is already in use', async () => {
       usersService.findByEmail.mockResolvedValue({ id: '1' } as any);
 
@@ -62,7 +79,7 @@ describe('AuthService', () => {
 
   describe('login', () => {
     it('outside production, returns a token for the fixed dev user id regardless of credentials', async () => {
-      process.env.NODE_ENV = 'test';
+      configService.isTest.mockReturnValue(true);
       jwtService.sign.mockReturnValue('dev-token');
       jwtService.decode.mockReturnValue({ exp: 1234567890 });
 
@@ -81,10 +98,6 @@ describe('AuthService', () => {
     });
 
     describe('in production', () => {
-      beforeEach(() => {
-        process.env.NODE_ENV = 'production';
-      });
-
       it('throws UnauthorizedException if no user matches the email', async () => {
         usersService.findByEmail.mockResolvedValue(null);
 

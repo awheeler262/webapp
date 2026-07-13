@@ -18,6 +18,30 @@ describe('ConfigService', () => {
     process.env.JWT_SECRET = originalJwtSecret;
   });
 
+  describe('isProduction', () => {
+    it('is true when NODE_ENV is production', () => {
+      process.env.NODE_ENV = 'production';
+      expect(service.isProduction()).toBe(true);
+    });
+
+    it('is false otherwise', () => {
+      process.env.NODE_ENV = 'test';
+      expect(service.isProduction()).toBe(false);
+    });
+  });
+
+  describe('isTest', () => {
+    it('is true when NODE_ENV is test', () => {
+      process.env.NODE_ENV = 'test';
+      expect(service.isTest()).toBe(true);
+    });
+
+    it('is false otherwise', () => {
+      process.env.NODE_ENV = 'production';
+      expect(service.isTest()).toBe(false);
+    });
+  });
+
   describe('getJwtSecret', () => {
     it('throws if JWT_SECRET is not set', async () => {
       delete process.env.JWT_SECRET;
