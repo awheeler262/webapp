@@ -31,10 +31,12 @@ npm-debug.log*
 # OS
 .DS_Store
 
-webapp.code-workspace
-*.html
-.claude
+# Other
 aws.md
 notes.md
+webapp.code-workspace
+*.html
+.claude/
+.zap-reports/
 /scripts/
 /utils/

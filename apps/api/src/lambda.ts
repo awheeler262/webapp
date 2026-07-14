@@ -2,7 +2,7 @@ import serverlessExpress from '@codegenie/serverless-express';
 import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import express from 'express';
-import { Handler } from 'aws-lambda';
+import { Callback, Handler } from 'aws-lambda';
 import { AppModule } from './app.module';
 import { configureHelmet, configureSecurityHeaders, configureCors, configureCookies, configureBodyParser, configureValidation } from './app.config';
 
@@ -26,7 +26,11 @@ async function bootstrap(): Promise<Handler> {
   return serverlessExpress({ app: expressApp });
 }
 
-export const handler: Handler = async (event, context, callback) => {
+// no-op: resolutionMode defaults to 'PROMISE', so serverless-express resolves via the
+// returned promise below rather than invoking this.
+const noopCallback: Callback = () => {};
+
+export const handler: Handler = async (event, context) => {
   cachedHandler ??= await bootstrap();
-  return cachedHandler(event, context, callback);
+  return cachedHandler(event, context, noopCallback);
 };
