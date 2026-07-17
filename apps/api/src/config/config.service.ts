@@ -36,6 +36,15 @@ export class ConfigService {
     return REGISTRATION_ALLOWED_ENVS.has(process.env.NODE_ENV ?? 'development');
   }
 
+  getBoostFunctionName(): string {
+    const value = process.env.BOOST_LAMBDA_FUNCTION_NAME;
+    if (!value)
+      throw new Error(
+        'BOOST_LAMBDA_FUNCTION_NAME environment variable is not set',
+      );
+    return value;
+  }
+
   getJwtSecret(): Promise<string> {
     this.jwtSecret ??= this.resolveJwtSecret();
     return this.jwtSecret;

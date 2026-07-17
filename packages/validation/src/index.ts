@@ -23,3 +23,13 @@ export class CreateUserDto {
   @MinLength(8)
   password: string;
 }
+
+export class BoostRequestDto {
+  @IsString()
+  prompt: string;
+}
+
+export class BoostResponseDto {
+  @IsString()
+  message: string;
+}

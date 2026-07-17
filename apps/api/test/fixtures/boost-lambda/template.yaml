@@ -1,0 +1,16 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Test-only fixture for BoostService's e2e test. Never deployed -- used
+  solely with `sam local start-lambda` to emulate the Lambda Invoke API
+  on localhost so BoostService can be exercised against a real network
+  call with zero real AWS involved.
+
+Resources:
+  BoostTestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs20.x
+      Handler: handler.handler
+      CodeUri: .
+      Timeout: 10
