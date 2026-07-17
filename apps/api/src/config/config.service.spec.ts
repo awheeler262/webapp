@@ -1,4 +1,7 @@
-import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
+import {
+  SecretsManagerClient,
+  GetSecretValueCommand,
+} from '@aws-sdk/client-secrets-manager';
 import { ConfigService } from './config.service';
 
 jest.mock('@aws-sdk/client-secrets-manager');
@@ -7,6 +10,7 @@ describe('ConfigService', () => {
   let service: ConfigService;
   const originalNodeEnv = process.env.NODE_ENV;
   const originalJwtSecret = process.env.JWT_SECRET;
+  const originalDatabaseUrl = process.env.DATABASE_URL;
   const originalDevLoginBypass = process.env.ALLOW_DEV_LOGIN_BYPASS;
 
   beforeEach(() => {
@@ -17,6 +21,7 @@ describe('ConfigService', () => {
   afterEach(() => {
     process.env.NODE_ENV = originalNodeEnv;
     process.env.JWT_SECRET = originalJwtSecret;
+    process.env.DATABASE_URL = originalDatabaseUrl;
     process.env.ALLOW_DEV_LOGIN_BYPASS = originalDevLoginBypass;
   });
 
@@ -94,19 +99,27 @@ describe('ConfigService', () => {
       });
 
       it('fetches the secret value from Secrets Manager using JWT_SECRET as the secret name', async () => {
-        const send = jest.fn().mockResolvedValue({ SecretString: 'fetched-secret-value' });
-        (SecretsManagerClient as jest.Mock).mockImplementation(() => ({ send }));
+        const send = jest
+          .fn()
+          .mockResolvedValue({ SecretString: 'fetched-secret-value' });
+        (SecretsManagerClient as jest.Mock).mockImplementation(() => ({
+          send,
+        }));
 
         const result = await service.getJwtSecret();
 
         expect(send).toHaveBeenCalledWith(expect.any(GetSecretValueCommand));
-        expect(GetSecretValueCommand).toHaveBeenCalledWith({ SecretId: 'my-secret-name' });
+        expect(GetSecretValueCommand).toHaveBeenCalledWith({
+          SecretId: 'my-secret-name',
+        });
         expect(result).toBe('fetched-secret-value');
       });
 
       it('throws if the secret has no SecretString', async () => {
         const send = jest.fn().mockResolvedValue({});
-        (SecretsManagerClient as jest.Mock).mockImplementation(() => ({ send }));
+        (SecretsManagerClient as jest.Mock).mockImplementation(() => ({
+          send,
+        }));
 
         await expect(service.getJwtSecret()).rejects.toThrow(
           'Secrets Manager secret "my-secret-name" has no SecretString',
@@ -114,13 +127,92 @@ describe('ConfigService', () => {
       });
 
       it('only fetches once and caches the in-flight promise for subsequent calls', async () => {
-        const send = jest.fn().mockResolvedValue({ SecretString: 'fetched-secret-value' });
-        (SecretsManagerClient as jest.Mock).mockImplementation(() => ({ send }));
+        const send = jest
+          .fn()
+          .mockResolvedValue({ SecretString: 'fetched-secret-value' });
+        (SecretsManagerClient as jest.Mock).mockImplementation(() => ({
+          send,
+        }));
 
-        const [first, second] = await Promise.all([service.getJwtSecret(), service.getJwtSecret()]);
+        const [first, second] = await Promise.all([
+          service.getJwtSecret(),
+          service.getJwtSecret(),
+        ]);
 
         expect(first).toBe('fetched-secret-value');
         expect(second).toBe('fetched-secret-value');
+        expect(send).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
+
+  describe('getDatabaseUrl', () => {
+    it('throws if DATABASE_URL is not set', async () => {
+      delete process.env.DATABASE_URL;
+      await expect(service.getDatabaseUrl()).rejects.toThrow(
+        'DATABASE_URL environment variable is not set',
+      );
+    });
+
+    it('outside production, returns the env var value directly with no AWS call', async () => {
+      process.env.NODE_ENV = 'test';
+      process.env.DATABASE_URL = 'postgres://localhost:5432/webapp';
+
+      const result = await service.getDatabaseUrl();
+
+      expect(result).toBe('postgres://localhost:5432/webapp');
+      expect(SecretsManagerClient).not.toHaveBeenCalled();
+    });
+
+    describe('in production', () => {
+      beforeEach(() => {
+        process.env.NODE_ENV = 'production';
+        process.env.DATABASE_URL = 'my-db-secret-name';
+      });
+
+      it('fetches the secret value from Secrets Manager using DATABASE_URL as the secret name', async () => {
+        const send = jest.fn().mockResolvedValue({
+          SecretString: 'postgres://prod-host:5432/webapp',
+        });
+        (SecretsManagerClient as jest.Mock).mockImplementation(() => ({
+          send,
+        }));
+
+        const result = await service.getDatabaseUrl();
+
+        expect(send).toHaveBeenCalledWith(expect.any(GetSecretValueCommand));
+        expect(GetSecretValueCommand).toHaveBeenCalledWith({
+          SecretId: 'my-db-secret-name',
+        });
+        expect(result).toBe('postgres://prod-host:5432/webapp');
+      });
+
+      it('throws if the secret has no SecretString', async () => {
+        const send = jest.fn().mockResolvedValue({});
+        (SecretsManagerClient as jest.Mock).mockImplementation(() => ({
+          send,
+        }));
+
+        await expect(service.getDatabaseUrl()).rejects.toThrow(
+          'Secrets Manager secret "my-db-secret-name" has no SecretString',
+        );
+      });
+
+      it('only fetches once and caches the in-flight promise for subsequent calls', async () => {
+        const send = jest.fn().mockResolvedValue({
+          SecretString: 'postgres://prod-host:5432/webapp',
+        });
+        (SecretsManagerClient as jest.Mock).mockImplementation(() => ({
+          send,
+        }));
+
+        const [first, second] = await Promise.all([
+          service.getDatabaseUrl(),
+          service.getDatabaseUrl(),
+        ]);
+
+        expect(first).toBe('postgres://prod-host:5432/webapp');
+        expect(second).toBe('postgres://prod-host:5432/webapp');
         expect(send).toHaveBeenCalledTimes(1);
       });
     });

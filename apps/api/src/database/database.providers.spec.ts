@@ -10,7 +10,9 @@ describe('isConnectivityError', () => {
   });
 
   it('recognizes a TypeORM QueryFailedError wrapping a driver connectivity error', () => {
-    expect(isConnectivityError({ driverError: { code: 'ECONNRESET' } })).toBe(true);
+    expect(isConnectivityError({ driverError: { code: 'ECONNRESET' } })).toBe(
+      true,
+    );
   });
 
   it('recognizes a Postgres SQLSTATE class 08 (connection exception) code', () => {
@@ -22,7 +24,9 @@ describe('isConnectivityError', () => {
   });
 
   it('does not misreport a plain Error with no code', () => {
-    expect(isConnectivityError(new Error('something else went wrong'))).toBe(false);
+    expect(isConnectivityError(new Error('something else went wrong'))).toBe(
+      false,
+    );
   });
 
   it('does not throw on non-object input', () => {

@@ -1,6 +1,7 @@
 import { ServiceUnavailableException } from '@nestjs/common';
-import { DataSource } from "typeorm";
-import { User } from "../modules/users/entities/user.entity";
+import { DataSource } from 'typeorm';
+import { User } from '../modules/users/entities/user.entity';
+import { ConfigService } from '../config/config.service';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -22,15 +23,34 @@ let initPromise: Promise<DataSource> | null = null;
 // database may be back, instead of being stuck replaying the same rejection.
 export function ensureInitialized(dataSource: DataSource): Promise<DataSource> {
   if (dataSource.isInitialized) return Promise.resolve(dataSource);
-  initPromise ??= dataSource.initialize().catch((err) => {
+  initPromise ??= resolveAndConnect(dataSource).catch((err) => {
     initPromise = null;
-    throw new ServiceUnavailableException('Database unavailable', { cause: err });
+    throw new ServiceUnavailableException('Database unavailable', {
+      cause: err,
+    });
   });
   return initPromise;
 }
 
+// A fresh ConfigService per connection attempt (not a shared module-level
+// instance) -- ConfigService.getDatabaseUrl() memoizes even on rejection
+// (same as getJwtSecret()), so reusing one instance across attempts would
+// let a failed resolution get cached forever and defeat the retry-on-failure
+// behavior above.
+async function resolveAndConnect(dataSource: DataSource): Promise<DataSource> {
+  const url = await new ConfigService().getDatabaseUrl();
+  dataSource.setOptions({ url });
+  return dataSource.initialize();
+}
+
 const NODE_CONNECTIVITY_CODES = new Set([
-  'ECONNREFUSED', 'ETIMEDOUT', 'EHOSTUNREACH', 'ENOTFOUND', 'ECONNRESET', 'EPIPE', 'EAI_AGAIN',
+  'ECONNREFUSED',
+  'ETIMEDOUT',
+  'EHOSTUNREACH',
+  'ENOTFOUND',
+  'ECONNRESET',
+  'EPIPE',
+  'EAI_AGAIN',
 ]);
 
 // isInitialized only means "initialize() once succeeded" -- it never resets itself
@@ -44,8 +64,9 @@ const NODE_CONNECTIVITY_CODES = new Set([
 // failure after upgrading typeorm/pg, in case a future version wraps or codes these
 // differently.
 export function isConnectivityError(err: unknown): boolean {
-  const code = (err as { code?: unknown })?.code
-    ?? (err as { driverError?: { code?: unknown } })?.driverError?.code;
+  const code =
+    (err as { code?: unknown })?.code ??
+    (err as { driverError?: { code?: unknown } })?.driverError?.code;
   if (typeof code !== 'string') return false;
   // Postgres SQLSTATE class 08 = Connection Exception (e.g. 08006 connection_failure)
   // -- covers a connection that was live and got dropped mid-lifetime, distinct from

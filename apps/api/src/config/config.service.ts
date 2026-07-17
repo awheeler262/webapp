@@ -1,11 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
+import {
+  SecretsManagerClient,
+  GetSecretValueCommand,
+} from '@aws-sdk/client-secrets-manager';
 
 const REGISTRATION_ALLOWED_ENVS = new Set(['development', 'test', 'e2e']);
 
 @Injectable()
 export class ConfigService {
   private jwtSecret?: Promise<string>;
+  private databaseUrl?: Promise<string>;
 
   isProduction(): boolean {
     return process.env.NODE_ENV === 'production';
@@ -20,7 +24,9 @@ export class ConfigService {
   // NODE_ENV=production is set correctly -- two independent mistakes would have to
   // align, not just one.
   isDevLoginBypassEnabled(): boolean {
-    return process.env.ALLOW_DEV_LOGIN_BYPASS === 'true' && !this.isProduction();
+    return (
+      process.env.ALLOW_DEV_LOGIN_BYPASS === 'true' && !this.isProduction()
+    );
   }
 
   // Allowlists known-safe environments rather than denylisting 'production' --
@@ -42,7 +48,30 @@ export class ConfigService {
 
     // In production, JWT_SECRET holds the *name* of the Secrets Manager secret, not the value.
     const client = new SecretsManagerClient({});
-    const response = await client.send(new GetSecretValueCommand({ SecretId: value }));
+    const response = await client.send(
+      new GetSecretValueCommand({ SecretId: value }),
+    );
+    if (!response.SecretString) {
+      throw new Error(`Secrets Manager secret "${value}" has no SecretString`);
+    }
+    return response.SecretString;
+  }
+
+  getDatabaseUrl(): Promise<string> {
+    this.databaseUrl ??= this.resolveDatabaseUrl();
+    return this.databaseUrl;
+  }
+
+  private async resolveDatabaseUrl(): Promise<string> {
+    const value = process.env.DATABASE_URL;
+    if (!value) throw new Error('DATABASE_URL environment variable is not set');
+    if (!this.isProduction()) return value;
+
+    // In production, DATABASE_URL holds the *name* of the Secrets Manager secret, not the value.
+    const client = new SecretsManagerClient({});
+    const response = await client.send(
+      new GetSecretValueCommand({ SecretId: value }),
+    );
     if (!response.SecretString) {
       throw new Error(`Secrets Manager secret "${value}" has no SecretString`);
     }
