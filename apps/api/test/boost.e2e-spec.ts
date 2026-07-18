@@ -44,10 +44,30 @@ describe('BoostService -> sam local start-lambda (e2e)', () => {
         sourceIp: '127.0.0.1',
       };
 
-      const result = await service.query(dto, proxyRequest);
+      const result = await service.invoke(dto, proxyRequest);
 
       expect(result).toEqual({
         message: 'boost-test-lambda received: hello from boost e2e test',
+      });
+    },
+    LAMBDA_COLD_START_TIMEOUT_MS,
+  );
+
+  it(
+    'invokes the local Lambda with a null dto, matching the status() health-check path',
+    async () => {
+      const proxyRequest = {
+        method: 'GET',
+        path: '/health',
+        queryString: '',
+        headers: {},
+        sourceIp: '127.0.0.1',
+      };
+
+      const result = await service.invoke(null, proxyRequest);
+
+      expect(result).toEqual({
+        message: 'boost-test-lambda received: ',
       });
     },
     LAMBDA_COLD_START_TIMEOUT_MS,

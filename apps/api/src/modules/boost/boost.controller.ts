@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Req, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Req, UseGuards, Get } from '@nestjs/common';
 import type { Request } from 'express';
 import { BoostService, BoostProxyRequest } from './boost.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -34,12 +34,17 @@ export class BoostController {
   @Post('query')
   @UseGuards(JwtAuthGuard)
   async query(@Body() dto: BoostRequestDto, @Req() req: Request) {
-    return await this.service.query(dto, extractProxyRequest(req));
+    const proxyRequest = extractProxyRequest(req);
+    proxyRequest.method = 'POST';
+    proxyRequest.path = '/query';
+    return await this.service.invoke(dto, extractProxyRequest(req));
   }
 
-  @Post('status')
-  @UseGuards(JwtAuthGuard)
-  async status(@Body() dto: BoostRequestDto) {
-    return await this.service.status();
+  @Get('status')
+  async status(@Req() req: Request) {
+    const proxyRequest = extractProxyRequest(req);
+    proxyRequest.method = 'GET';
+    proxyRequest.path = '/health';
+    return await this.service.invoke(null, proxyRequest);
   }
 }

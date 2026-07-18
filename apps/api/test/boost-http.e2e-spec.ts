@@ -34,7 +34,7 @@ describe('POST /boost/query -> AppModule -> sam local start-lambda (e2e)', () =>
   const email = `boost-http-e2e-${Date.now()}@example.com`;
 
   beforeAll(async () => {
-    // Read fresh on every BoostService.query() call via
+    // Read fresh on every BoostService.invoke() call via
     // ConfigService.getBoostFunctionName(), so setting it any time before the
     // request in each `it` is enough -- no DI override needed for this piece.
     process.env.BOOST_LAMBDA_FUNCTION_NAME = BOOST_TEST_FUNCTION_LOGICAL_ID;
@@ -92,6 +92,46 @@ describe('POST /boost/query -> AppModule -> sam local start-lambda (e2e)', () =>
         .expect({
           message: 'boost-test-lambda received: hello from boost http e2e test',
         });
+    },
+    LAMBDA_COLD_START_TIMEOUT_MS,
+  );
+});
+
+describe('GET /boost/status -> AppModule -> sam local start-lambda (e2e)', () => {
+  let app: INestApplication<App>;
+
+  beforeAll(async () => {
+    process.env.BOOST_LAMBDA_FUNCTION_NAME = BOOST_TEST_FUNCTION_LOGICAL_ID;
+
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    })
+      .overrideProvider(LAMBDA_CLIENT)
+      .useValue(
+        new LambdaClient({
+          endpoint: SAM_LOCAL_LAMBDA_ENDPOINT,
+          region: 'us-east-1',
+          credentials: { accessKeyId: 'test', secretAccessKey: 'test' },
+        }),
+      )
+      .compile();
+
+    app = moduleFixture.createNestApplication();
+    configureCookies(app);
+    await app.init();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it(
+    'has no auth guard and proxies through to the local Lambda with a null body',
+    () => {
+      return request(app.getHttpServer())
+        .get('/boost/status')
+        .expect(200)
+        .expect({ message: 'boost-test-lambda received: ' });
     },
     LAMBDA_COLD_START_TIMEOUT_MS,
   );

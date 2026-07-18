@@ -27,8 +27,8 @@ export class BoostService {
     @Inject(LAMBDA_CLIENT) private lambda: LambdaClient,
   ) {}
 
-  async query(
-    dto: BoostRequestDto,
+  async invoke(
+    dto: BoostRequestDto | null,
     proxyRequest: BoostProxyRequest,
   ): Promise<BoostResponseDto> {
     const { method, path, queryString, headers, sourceIp } = proxyRequest;
@@ -43,7 +43,7 @@ export class BoostService {
       requestContext: {
         http: { method, path, protocol: 'HTTP/1.1', sourceIp },
       },
-      body: JSON.stringify(dto),
+      body: dto ? JSON.stringify(dto) : null,
       isBase64Encoded: false,
     };
 
@@ -106,7 +106,4 @@ export class BoostService {
     return parsed as BoostResponseDto;
   }
 
-  async status() {
-    return { message: 'ok' };
-  }
 }
