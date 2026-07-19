@@ -1,7 +1,16 @@
-// Stand-in for the real Boost Lambda. Returns the raw `{ message }` shape
-// that BoostService.parseResponse() expects directly -- not an API Gateway
-// proxy-style { statusCode, body } wrapper -- matching the current contract.
+// Stand-in for the real Boost Lambda, which runs Mangum -- Mangum always
+// wraps its response in an API Gateway proxy-style { statusCode, body }
+// envelope, even on a direct lambda:InvokeFunction call with no API Gateway
+// in between to unwrap it, so this mirrors that shape rather than returning
+// the inner { message } payload directly.
 exports.handler = async (event) => {
   const body = event.body ? JSON.parse(event.body) : {};
-  return { message: `boost-test-lambda received: ${body.prompt ?? ''}` };
+  return {
+    statusCode: 200,
+    body: JSON.stringify({
+      message: `boost-test-lambda received: ${body.prompt ?? ''}`,
+    }),
+    headers: { 'content-type': 'application/json' },
+    isBase64Encoded: false,
+  };
 };

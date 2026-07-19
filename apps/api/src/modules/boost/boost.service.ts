@@ -1,6 +1,7 @@
 import {
   Inject,
   Injectable,
+  Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import {
@@ -22,6 +23,8 @@ export interface BoostProxyRequest {
 
 @Injectable()
 export class BoostService {
+  private readonly logger = new Logger(BoostService.name);
+
   constructor(
     private config: ConfigService,
     @Inject(LAMBDA_CLIENT) private lambda: LambdaClient,
@@ -94,15 +97,45 @@ export class BoostService {
   private parseResponse(
     payload: Uint8Array | undefined,
   ): BoostResponseDto | null {
-    if (!payload) return null;
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(Buffer.from(payload).toString('utf-8'));
-    } catch {
+    if (!payload) {
+      this.logger.error('Boost function returned no payload');
       return null;
     }
-    if (typeof (parsed as { message?: unknown })?.message !== 'string')
+
+    const raw = Buffer.from(payload).toString('utf-8');
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (err) {
+      this.logger.error(
+        `Boost function returned non-JSON payload: ${raw}`,
+        err instanceof Error ? err.stack : undefined,
+      );
       return null;
+    }
+
+    // The real downstream Lambda runs Mangum, which always wraps its
+    // response in an API Gateway proxy-style envelope
+    // ({ statusCode, body: '<json>', headers }) -- even on a direct
+    // lambda:InvokeFunction call with no API Gateway in between to unwrap
+    // it. Unwrap it here before looking for `message`.
+    const body = (parsed as { body?: unknown })?.body;
+    if (typeof body === 'string') {
+      try {
+        parsed = JSON.parse(body);
+      } catch (err) {
+        this.logger.error(
+          `Boost function's wrapped body was non-JSON: ${body}`,
+          err instanceof Error ? err.stack : undefined,
+        );
+        return null;
+      }
+    }
+
+    if (typeof (parsed as { message?: unknown })?.message !== 'string') {
+      this.logger.error(`Boost function returned an unexpected shape: ${raw}`);
+      return null;
+    }
     return parsed as BoostResponseDto;
   }
 
