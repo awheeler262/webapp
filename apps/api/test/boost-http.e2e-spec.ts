@@ -90,7 +90,7 @@ describe('POST /boost/query -> AppModule -> sam local start-lambda (e2e)', () =>
         .send({ prompt: 'hello from boost http e2e test' })
         .expect(201)
         .expect({
-          message: 'boost-test-lambda received: hello from boost http e2e test',
+          status: 'boost-test-lambda received: hello from boost http e2e test',
         });
     },
     LAMBDA_COLD_START_TIMEOUT_MS,
@@ -131,7 +131,7 @@ describe('GET /boost/status -> AppModule -> sam local start-lambda (e2e)', () =>
       return request(app.getHttpServer())
         .get('/boost/status')
         .expect(200)
-        .expect({ message: 'boost-test-lambda received: ' });
+        .expect({ status: 'boost-test-lambda received: ' });
     },
     LAMBDA_COLD_START_TIMEOUT_MS,
   );

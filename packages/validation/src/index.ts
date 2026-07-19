@@ -31,5 +31,5 @@ export class BoostRequestDto {
 
 export class BoostResponseDto {
   @IsString()
-  message: string;
+  status: string;
 }

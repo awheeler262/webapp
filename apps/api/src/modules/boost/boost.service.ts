@@ -118,7 +118,7 @@ export class BoostService {
     // response in an API Gateway proxy-style envelope
     // ({ statusCode, body: '<json>', headers }) -- even on a direct
     // lambda:InvokeFunction call with no API Gateway in between to unwrap
-    // it. Unwrap it here before looking for `message`.
+    // it. Unwrap it here before looking for `status`.
     const body = (parsed as { body?: unknown })?.body;
     if (typeof body === 'string') {
       try {
@@ -132,7 +132,7 @@ export class BoostService {
       }
     }
 
-    if (typeof (parsed as { message?: unknown })?.message !== 'string') {
+    if (typeof (parsed as { status?: unknown })?.status !== 'string') {
       this.logger.error(`Boost function returned an unexpected shape: ${raw}`);
       return null;
     }
