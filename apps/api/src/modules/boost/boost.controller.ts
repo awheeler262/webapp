@@ -37,6 +37,9 @@ function extractProxyRequest(req: Request): BoostProxyRequest {
 
 @Controller('boost')
 export class BoostController {
+
+  base = '/api/v1/';
+
   constructor(private service: BoostService) {}
 
   @Post('query')
@@ -44,7 +47,7 @@ export class BoostController {
   async query(@Body() dto: BoostRequestDto, @Req() req: Request) {
     const proxyRequest = extractProxyRequest(req);
     proxyRequest.method = 'POST';
-    proxyRequest.path = '/query';
+    proxyRequest.path = this.base + 'query/';
     return await this.service.invoke(dto, proxyRequest);
   }
 
@@ -52,7 +55,7 @@ export class BoostController {
   async status(@Req() req: Request) {
     const proxyRequest = extractProxyRequest(req);
     proxyRequest.method = 'GET';
-    proxyRequest.path = '/health';
+    proxyRequest.path = this.base + 'health/';
     return await this.service.invoke(null, proxyRequest);
   }
 }
