@@ -79,6 +79,8 @@ function runAction(action: string) {
     resultOutput.value = abnormal.length > 0 ? JSON.stringify(abnormal, null, 2) : 'No abnormal readings'
   } else if (action === 'transaction') {
     resultOutput.value = transaction.value ? JSON.stringify(transaction.value, null, 2) : 'No transaction'
+  } else if (action === 'chart') {
+    resultOutput.value = ''
   }
 }
 </script>
@@ -110,11 +112,13 @@ function runAction(action: string) {
       <button type="button" @click="runAction('latest')">Latest Reading</button>
       <button type="button" @click="runAction('abnormal')">Flag Abnormal</button>
       <button type="button" @click="runAction('transaction')">Show Transaction</button>
+      <button type="button" @click="runAction('chart')">Daily Mean Chart</button>
     </section>
 
     <section v-if="transaction" class="results">
       <h2>Results</h2>
-      <pre v-if="resultOutput">{{ resultOutput }}</pre>
+      <DailyMeanChart v-if="selectedAction === 'chart'" :entries="records" />
+      <pre v-else-if="resultOutput">{{ resultOutput }}</pre>
       <p v-else>Select an action above.</p>
     </section>
   </main>
