@@ -37,7 +37,6 @@ function extractProxyRequest(req: Request): BoostProxyRequest {
 
 @Controller('boost')
 export class BoostController {
-
   base = '/api/v1/';
 
   constructor(private service: BoostService) {}

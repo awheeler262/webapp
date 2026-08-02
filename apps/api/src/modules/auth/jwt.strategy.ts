@@ -14,13 +14,20 @@ export function fromAuthCookie(req: Request): string | null {
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private users: UsersService, config: ConfigService) {
-    if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
+  constructor(
+    private users: UsersService,
+    config: ConfigService,
+  ) {
+    if (!process.env.JWT_SECRET)
+      throw new Error('JWT_SECRET environment variable is not set');
 
     super({
       jwtFromRequest: fromAuthCookie,
       secretOrKeyProvider: (_request, _rawJwtToken, done) => {
-        config.getJwtSecret().then((secret) => done(null, secret)).catch(done);
+        config
+          .getJwtSecret()
+          .then((secret) => done(null, secret))
+          .catch(done);
       },
     });
   }

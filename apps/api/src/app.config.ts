@@ -21,14 +21,20 @@ export function configureBodyParser(app: INestApplication) {
 }
 
 export function configureHelmet(app: INestApplication) {
-  app.use(helmet({
-    strictTransportSecurity: { maxAge: 63072000, includeSubDomains: true, preload: true },
-    contentSecurityPolicy: {
-      useDefaults: false,
-      directives: { defaultSrc: ["'none'"] },
-    },
-    frameguard: { action: 'deny' },
-  }));
+  app.use(
+    helmet({
+      strictTransportSecurity: {
+        maxAge: 63072000,
+        includeSubDomains: true,
+        preload: true,
+      },
+      contentSecurityPolicy: {
+        useDefaults: false,
+        directives: { defaultSrc: ["'none'"] },
+      },
+      frameguard: { action: 'deny' },
+    }),
+  );
 }
 
 // Content-Type is intentionally not set here — Nest already sets it correctly
@@ -55,9 +61,11 @@ export function configureCors(app: INestApplication) {
 }
 
 export function configureValidation(app: INestApplication) {
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,       // strip properties not in DTO
-    forbidNonWhitelisted: true,
-    transform: true,       // auto-transform payloads to DTO types
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true, // strip properties not in DTO
+      forbidNonWhitelisted: true,
+      transform: true, // auto-transform payloads to DTO types
+    }),
+  );
 }

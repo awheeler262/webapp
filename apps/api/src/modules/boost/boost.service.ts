@@ -138,5 +138,4 @@ export class BoostService {
     }
     return parsed as BoostResponseDto;
   }
-
 }

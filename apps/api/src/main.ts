@@ -1,7 +1,14 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { configureHelmet, configureSecurityHeaders, configureCors, configureCookies, configureBodyParser, configureValidation } from './app.config';
+import {
+  configureHelmet,
+  configureSecurityHeaders,
+  configureCors,
+  configureCookies,
+  configureBodyParser,
+  configureValidation,
+} from './app.config';
 
 async function bootstrap() {
   // bodyParser:false so only configureBodyParser's JSON-only parser is registered --

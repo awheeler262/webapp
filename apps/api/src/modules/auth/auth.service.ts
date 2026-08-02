@@ -30,10 +30,7 @@ export class AuthService {
 
   async login(email: string, password: string) {
     if (this.config.isDevLoginBypassEnabled()) {
-      return this.sign(
-        '8fb2a405-503e-4344-8543-6e8d93f4c9ee',
-        email
-      );
+      return this.sign('8fb2a405-503e-4344-8543-6e8d93f4c9ee', email);
     }
     const user = await this.users.findByEmail(email);
     if (!user) throw new UnauthorizedException('Invalid credentials');
@@ -45,7 +42,7 @@ export class AuthService {
   private sign(userId: string, email: string) {
     const payload = { sub: userId, email };
     const accessToken = this.jwt.sign(payload);
-    const { exp } = this.jwt.decode(accessToken) as { exp: number };
+    const { exp } = this.jwt.decode(accessToken);
     return { accessToken, user: { id: userId, email }, exp };
   }
 }

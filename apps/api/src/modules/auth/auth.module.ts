@@ -24,7 +24,8 @@ import { ConfigService } from '../../config/config.service';
           // string like "1h" — parse it instead of casting so a malformed/missing
           // value falls back to the default rather than silently misconfiguring
           // token expiry.
-          expiresIn: Number.parseInt(process.env.JWT_EXPIRY ?? '', 10) || 60 * 60
+          expiresIn:
+            Number.parseInt(process.env.JWT_EXPIRY ?? '', 10) || 60 * 60,
         },
       }),
     }),

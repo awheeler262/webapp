@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsDateString, IsEmail, IsNumber, IsString, Min, MinLength } from 'class-validator';
 
 export const CreateUserSchema = z.object({
   email: z.string().email(),
@@ -30,6 +30,26 @@ export class BoostRequestDto {
 }
 
 export class BoostResponseDto {
+  @IsString()
+  status: string;
+}
+
+export class HealthRequestDto {
+  @IsString()
+  service: string;
+
+  @IsDateString()
+  timestamp: string;
+
+  @IsNumber()
+  @Min(0)
+  count: number;
+
+  @IsString()
+  hash: string;
+}
+
+export class HealthResponseDto extends HealthRequestDto {
   @IsString()
   status: string;
 }
