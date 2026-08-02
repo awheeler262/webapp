@@ -79,7 +79,7 @@ function runAction(action: string) {
     resultOutput.value = abnormal.length > 0 ? JSON.stringify(abnormal, null, 2) : 'No abnormal readings'
   } else if (action === 'transaction') {
     resultOutput.value = transaction.value ? JSON.stringify(transaction.value, null, 2) : 'No transaction'
-  } else if (action === 'chart') {
+  } else if (action === 'chart' || action === 'monthly-systolic' || action === 'monthly-diastolic') {
     resultOutput.value = ''
   }
 }
@@ -87,11 +87,28 @@ function runAction(action: string) {
 
 <template>
   <main class="health">
-    <h1>Health Visualization</h1>
+    <h1>Blood Pressure Visualization</h1>
     <p>
-      Blood pressure visualization tools.
+      Upload a file with blood pressure data and see various statistics and graphics.
     </p>
-
+    <p>
+      Supported file formats: CSV (pipe delimited), XLSX (first sheet).
+      Below shows the CSV file format. The XLSX file should have the same headers on the first row.
+    </p>
+    <pre>
+date|time|systolic|diastolic|pulse|notes
+2026-08-01|03:00|121|81|56|meds; multiple
+2026-08-01|13:00|122|82|57|
+2026-08-02|21:35|120|80|55|
+    </pre>
+    <p>
+      No medical data leaves the browser.
+    </p>
+    <p>
+      The transaction shows the information about the file that will get sent
+      to a server for billing in a future version.
+    </p>
+    <hr>
     <section class="upload">
       <input
         ref="fileInput"
@@ -113,11 +130,15 @@ function runAction(action: string) {
       <button type="button" @click="runAction('abnormal')">Flag Abnormal</button>
       <button type="button" @click="runAction('transaction')">Show Transaction</button>
       <button type="button" @click="runAction('chart')">Daily Mean Chart</button>
+      <button type="button" @click="runAction('monthly-systolic')">Monthly Systolic</button>
+      <button type="button" @click="runAction('monthly-diastolic')">Monthly Diastolic</button>
     </section>
 
     <section v-if="transaction" class="results">
       <h2>Results</h2>
       <DailyMeanChart v-if="selectedAction === 'chart'" :entries="records" />
+      <MonthlyBoxplotChart v-else-if="selectedAction === 'monthly-systolic'" :entries="records" metric="systolic" />
+      <MonthlyBoxplotChart v-else-if="selectedAction === 'monthly-diastolic'" :entries="records" metric="diastolic" />
       <pre v-else-if="resultOutput">{{ resultOutput }}</pre>
       <p v-else>Select an action above.</p>
     </section>
