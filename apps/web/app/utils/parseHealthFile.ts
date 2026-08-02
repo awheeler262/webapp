@@ -1,3 +1,5 @@
+import { readSheet } from 'read-excel-file/browser'
+
 export type Entry = {
   date: string // %Y-%m-%d
   time: string // %H:%M 24-hour
@@ -56,22 +58,17 @@ function validateRow(raw: Record<string, string>, row: number): { entry: Entry; 
   }
 }
 
-export function parseCsv(text: string): Entry[] {
-  const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0)
-  if (lines.length === 0) {
-    throw new Error('File is empty')
-  }
-
-  const header = lines[0]!.split(DELIMITER).map(h => h.trim())
+function checkHeader(header: string[]): void {
   if (header.length !== EXPECTED_COLUMNS.length || EXPECTED_COLUMNS.some((col, i) => header[i] !== col)) {
     throw new Error(`Header must be: ${EXPECTED_COLUMNS.join(DELIMITER)}`)
   }
+}
 
+function buildEntries(header: string[], rows: string[][]): Entry[] {
   const parsed: Entry[] = []
   const allErrors: string[] = []
 
-  lines.slice(1).forEach((line, index) => {
-    const cells = line.split(DELIMITER).map(c => c.trim())
+  rows.forEach((cells, index) => {
     const raw: Record<string, string> = {}
     header.forEach((col, i) => { raw[col] = cells[i] ?? '' })
 
@@ -85,4 +82,36 @@ export function parseCsv(text: string): Entry[] {
   }
 
   return parsed
+}
+
+export function parseCsv(text: string): Entry[] {
+  const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0)
+  if (lines.length === 0) {
+    throw new Error('File is empty')
+  }
+
+  const header = lines[0]!.split(DELIMITER).map(h => h.trim())
+  checkHeader(header)
+
+  const rows = lines.slice(1).map(line => line.split(DELIMITER).map(c => c.trim()))
+  return buildEntries(header, rows)
+}
+
+function stringifyCell(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  if (value instanceof Date) return value.toISOString()
+  return String(value).trim()
+}
+
+export async function parseXlsx(file: File): Promise<Entry[]> {
+  const rows = await readSheet(file)
+  if (rows.length === 0) {
+    throw new Error('File is empty')
+  }
+
+  const header = rows[0]!.map(stringifyCell)
+  checkHeader(header)
+
+  const dataRows = rows.slice(1).map(row => row.map(stringifyCell))
+  return buildEntries(header, dataRows)
 }

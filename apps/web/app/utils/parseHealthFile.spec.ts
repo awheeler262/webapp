@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseCsv } from './parseHealthCsv'
+import { parseCsv } from './parseHealthFile'
 
 describe('parseCsv', () => {
   it('parses pipe-delimited rows into Entry objects', () => {

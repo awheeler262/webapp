@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ requiresAuth: false })
 
-import { parseCsv, type Entry } from '~/utils/parseHealthCsv'
+import { parseCsv, parseXlsx, type Entry } from '~/utils/parseHealthFile'
 
 type Transaction = {
   timestamp: Date //'%Y-%m-%dT%H:%M:%S'
@@ -17,8 +17,8 @@ const resultOutput = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
 const fileName = ref('')
 
-async function hashText(text: string): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
+async function hashFile(entries: Entry[]): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(entries)))
   return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
@@ -39,13 +39,13 @@ async function onFileChange(event: Event) {
   resultOutput.value = ''
 
   try {
-    const text = await file.text()
-    const parsed = parseCsv(text)
+    const isXlsx = file.name.toLowerCase().endsWith('.xlsx')
+    const parsed = isXlsx ? await parseXlsx(file) : parseCsv(await file.text())
     records.value = parsed
     transaction.value = {
       timestamp: new Date(),
       count: parsed.length,
-      hash: await hashText(text)
+      hash: await hashFile(parsed)
     }
     console.log(records)
     console.log(transaction)
@@ -94,11 +94,11 @@ function runAction(action: string) {
       <input
         ref="fileInput"
         type="file"
-        accept=".csv"
+        accept=".csv,.xlsx"
         class="file-input"
         @change="onFileChange"
       >
-      <button type="button" @click="triggerUpload">{{ fileName || 'Upload CSV' }}</button>
+      <button type="button" @click="triggerUpload">{{ fileName || 'Upload File' }}</button>
       <p v-if="uploadError" class="error" role="alert">{{ uploadError }}</p>
       <p v-if="transaction" class="success">
         Loaded {{ transaction.count }} reading(s) &mdash; transaction {{ transaction.hash.slice(0, 8) }}
