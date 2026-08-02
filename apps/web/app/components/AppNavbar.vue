@@ -46,6 +46,7 @@ function onLogout() {
       <NuxtLink to="/">Home</NuxtLink>
       <!-- <NuxtLink v-if="isLoggedIn" to="/fair">FAIR</NuxtLink> -->
       <NuxtLink to="/fair">FAIR</NuxtLink>
+      <NuxtLink to="/health">Health</NuxtLink>
       <NuxtLink to="/about">About</NuxtLink>
     </nav>
 
