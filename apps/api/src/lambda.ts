@@ -27,7 +27,8 @@ async function bootstrap(): Promise<Handler> {
 
   configureHelmet(app);
   configureSecurityHeaders(app);
-  app.setGlobalPrefix('api');
+  // API Gateway owns /api so we do not set it here.
+  // app.setGlobalPrefix('api');
   configureCors(app);
   configureCookies(app);
   configureBodyParser(app);
