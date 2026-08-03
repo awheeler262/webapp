@@ -2,15 +2,11 @@
 definePageMeta({ requiresAuth: false })
 
 import { parseCsv, parseXlsx, type Entry } from '~/utils/parseHealthFile'
-
-type Transaction = {
-  timestamp: Date //'%Y-%m-%dT%H:%M:%S'
-  count: number // > 0
-  hash: string
-}
+import type { HealthRequestDto, HealthResponseDto } from '@my-app/validation'
 
 const records = ref<Entry[]>([])
-const transaction = ref<Transaction | null>(null)
+const transaction = ref<HealthRequestDto | null>(null)
+const submitted = ref(false)
 const uploadError = ref('')
 const selectedAction = ref('')
 const resultOutput = ref('')
@@ -27,7 +23,6 @@ function triggerUpload() {
 }
 
 async function onFileChange(event: Event) {
-  console.log('onFileChange')
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   input.value = ''
@@ -37,23 +32,40 @@ async function onFileChange(event: Event) {
   uploadError.value = ''
   selectedAction.value = ''
   resultOutput.value = ''
+  submitted.value = false
+  records.value = []
+  transaction.value = null
 
+  let parsed: Entry[]
   try {
     const isXlsx = file.name.toLowerCase().endsWith('.xlsx')
-    const parsed = isXlsx ? await parseXlsx(file) : parseCsv(await file.text())
-    records.value = parsed
-    transaction.value = {
-      timestamp: new Date(),
-      count: parsed.length,
-      hash: await hashFile(parsed)
-    }
-    console.log(records)
-    console.log(transaction)
+    parsed = isXlsx ? await parseXlsx(file) : parseCsv(await file.text())
   } catch (err) {
-    console.error(err)
-    records.value = []
-    transaction.value = null
     uploadError.value = err instanceof Error ? err.message : 'Failed to parse file'
+    return
+  }
+
+  records.value = parsed
+  const payload: HealthRequestDto = {
+    service: 'blood',
+    timestamp: new Date().toISOString(),
+    count: parsed.length,
+    hash: await hashFile(parsed)
+  }
+  transaction.value = payload
+
+  try {
+    const $api = useApi()
+    const response = await $api<HealthResponseDto>('/api/health', {
+      method: 'POST',
+      body: payload
+    })
+    submitted.value = response.status === 'submitted'
+    if (!submitted.value) {
+      uploadError.value = `Submission was not accepted (status: "${response.status}")`
+    }
+  } catch (err) {
+    uploadError.value = err instanceof Error ? err.message : 'Failed to submit transaction'
   }
 }
 
@@ -105,8 +117,8 @@ date|time|systolic|diastolic|pulse|notes
       No medical data leaves the browser.
     </p>
     <p>
-      The transaction shows the information about the file that will get sent
-      to a server for billing in a future version.
+      The transaction shows the information about the file that gets sent
+      to a server for billing in a future release.
     </p>
     <hr>
     <section class="upload">
@@ -119,12 +131,12 @@ date|time|systolic|diastolic|pulse|notes
       >
       <button type="button" @click="triggerUpload">{{ fileName || 'Upload File' }}</button>
       <p v-if="uploadError" class="error" role="alert">{{ uploadError }}</p>
-      <p v-if="transaction" class="success">
+      <p v-if="submitted && transaction" class="success">
         Loaded {{ transaction.count }} reading(s) &mdash; transaction {{ transaction.hash.slice(0, 8) }}
       </p>
     </section>
 
-    <section v-if="transaction" class="actions">
+    <section v-if="submitted" class="actions">
       <button type="button" @click="runAction('summary')">Summary</button>
       <button type="button" @click="runAction('latest')">Latest Reading</button>
       <button type="button" @click="runAction('abnormal')">Flag Abnormal</button>
@@ -134,7 +146,7 @@ date|time|systolic|diastolic|pulse|notes
       <button type="button" @click="runAction('monthly-diastolic')">Monthly Diastolic</button>
     </section>
 
-    <section v-if="transaction" class="results">
+    <section v-if="submitted" class="results">
       <h2>Results</h2>
       <DailyMeanChart v-if="selectedAction === 'chart'" :entries="records" />
       <MonthlyBoxplotChart v-else-if="selectedAction === 'monthly-systolic'" :entries="records" metric="systolic" />
