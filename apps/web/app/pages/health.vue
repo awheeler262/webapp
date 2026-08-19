@@ -91,7 +91,7 @@ function runAction(action: string) {
     resultOutput.value = abnormal.length > 0 ? JSON.stringify(abnormal, null, 2) : 'No abnormal readings'
   } else if (action === 'transaction') {
     resultOutput.value = transaction.value ? JSON.stringify(transaction.value, null, 2) : 'No transaction'
-  } else if (action === 'chart' || action === 'monthly-systolic' || action === 'monthly-diastolic') {
+  } else if (action === 'chart' || action === 'monthly') {
     resultOutput.value = ''
   }
 }
@@ -170,15 +170,13 @@ function downloadTemplate(templateType: string) {
       <button type="button" @click="runAction('abnormal')">Flag Abnormal</button>
       <button type="button" @click="runAction('transaction')">Show Transaction</button>
       <button type="button" @click="runAction('chart')">Daily Mean Chart</button>
-      <button type="button" @click="runAction('monthly-systolic')">Monthly Systolic</button>
-      <button type="button" @click="runAction('monthly-diastolic')">Monthly Diastolic</button>
+      <button type="button" @click="runAction('monthly')">Monthly Boxplot</button>
     </section>
 
     <section v-if="submitted" class="results">
       <h2>Results</h2>
       <DailyMeanChart v-if="selectedAction === 'chart'" :entries="records" />
-      <MonthlyBoxplotChart v-else-if="selectedAction === 'monthly-systolic'" :entries="records" metric="systolic" />
-      <MonthlyBoxplotChart v-else-if="selectedAction === 'monthly-diastolic'" :entries="records" metric="diastolic" />
+      <MonthlyBoxplotChart v-else-if="selectedAction === 'monthly'" :entries="records" />
       <pre v-else-if="resultOutput">{{ resultOutput }}</pre>
       <p v-else>Select an action above.</p>
     </section>

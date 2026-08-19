@@ -1,6 +1,6 @@
 import type { Entry } from './parseHealthFile'
 
-export type Metric = 'systolic' | 'diastolic'
+export type Metric = 'systolic' | 'diastolic' | 'pulse'
 
 export type BoxplotStats = {
   yearMonth: string // %Y-%m

@@ -35,12 +35,15 @@ describe('monthlyBoxplotStats', () => {
 
   it('reads the requested metric', () => {
     const entries: Entry[] = [
-      entry({ date: '2026-08-01', systolic: 120, diastolic: 70 }),
-      entry({ date: '2026-08-02', systolic: 130, diastolic: 90 })
+      entry({ date: '2026-08-01', systolic: 120, diastolic: 70, pulse: 58 }),
+      entry({ date: '2026-08-02', systolic: 130, diastolic: 90, pulse: 62 })
     ]
 
     expect(monthlyBoxplotStats(entries, 'diastolic')).toEqual([
       { yearMonth: '2026-08', min: 70, q1: 75, median: 80, q3: 85, max: 90, outliers: [] }
+    ])
+    expect(monthlyBoxplotStats(entries, 'pulse')).toEqual([
+      { yearMonth: '2026-08', min: 58, q1: 59, median: 60, q3: 61, max: 62, outliers: [] }
     ])
   })
 })
