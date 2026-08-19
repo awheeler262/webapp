@@ -121,50 +121,6 @@ function draw() {
   }
   legendEntry(0, 'series-systolic', 'Systolic')
   legendEntry(1, 'series-diastolic', 'Diastolic')
-
-  const crosshair = root.append('line')
-    .attr('class', 'crosshair')
-    .attr('y1', 0)
-    .attr('y2', INNER_HEIGHT)
-    .style('display', 'none')
-
-  root.append('rect')
-    .attr('class', 'overlay')
-    .attr('width', INNER_WIDTH)
-    .attr('height', INNER_HEIGHT)
-    .style('fill', 'none')
-    .style('pointer-events', 'all')
-    .on('pointermove', (event) => {
-      const [mouseX] = d3.pointer(event)
-      const targetDate = x.invert(mouseX)
-      let i = bisectDate(data, targetDate, 1)
-      i = Math.min(i, data.length - 1)
-      const prev = data[i - 1]
-      const curr = data[i]
-      const point = !prev || (curr && targetDate.getTime() - prev.date.getTime() > curr.date.getTime() - targetDate.getTime())
-        ? curr
-        : prev
-      if (!point) return
-
-      crosshair
-        .style('display', null)
-        .attr('x1', x(point.date))
-        .attr('x2', x(point.date))
-
-      const topValue = Math.max(point.meanSystolic, point.meanDiastolic)
-      const rect = svgEl.value!.getBoundingClientRect()
-      const scale = rect.width / WIDTH
-      tooltipVisible.value = true
-      tooltipX.value = (MARGIN.left + x(point.date)) * scale
-      tooltipY.value = (MARGIN.top + y(topValue)) * scale - 12
-      tooltipDate.value = d3.timeFormat('%Y-%m-%d')(point.date)
-      tooltipSystolic.value = Math.round(point.meanSystolic)
-      tooltipDiastolic.value = Math.round(point.meanDiastolic)
-    })
-    .on('pointerleave', () => {
-      crosshair.style('display', 'none')
-      tooltipVisible.value = false
-    })
 }
 
 onMounted(draw)
@@ -175,11 +131,6 @@ watch(() => props.entries, draw)
   <div class="chart-container">
     <svg ref="svgEl" class="chart-svg" role="img" aria-label="Daily mean systolic and diastolic pressure by month">
     </svg>
-    <div v-if="tooltipVisible" class="tooltip" :style="{ left: `${tooltipX}px`, top: `${tooltipY}px` }">
-      <div class="tooltip-date">{{ tooltipDate }}</div>
-      <div class="tooltip-row"><span class="key series-systolic" /> Systolic <strong>{{ tooltipSystolic }}</strong></div>
-      <div class="tooltip-row"><span class="key series-diastolic" /> Diastolic <strong>{{ tooltipDiastolic }}</strong></div>
-    </div>
   </div>
 </template>
 
@@ -270,44 +221,6 @@ watch(() => props.entries, draw)
 :deep(.legend-label) {
   fill: var(--text-secondary);
   font-size: 12px;
-}
-
-:deep(.crosshair) {
-  stroke: var(--axis);
-  stroke-width: 1;
-  pointer-events: none;
-}
-
-.tooltip {
-  position: absolute;
-  transform: translate(-50%, -100%);
-  background: var(--surface-1);
-  border: 1px solid var(--gridline);
-  border-radius: 4px;
-  padding: 6px 10px;
-  font-size: 12px;
-  color: var(--text-secondary);
-  box-shadow: 0 2px 6px rgba(11, 11, 11, 0.15);
-  pointer-events: none;
-  white-space: nowrap;
-}
-
-.tooltip-date {
-  color: var(--text-primary);
-  font-weight: 600;
-  margin-bottom: 2px;
-}
-
-.tooltip-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.tooltip-row strong {
-  color: var(--text-primary);
-  margin-left: auto;
-  padding-left: 8px;
 }
 
 .key {

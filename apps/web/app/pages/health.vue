@@ -95,6 +95,33 @@ function runAction(action: string) {
     resultOutput.value = ''
   }
 }
+
+function downloadTemplate(templateType: string) {
+  let template = "";
+  let filename = "";
+  switch (templateType) {
+    case 'heart':
+      template = "date,time,systolic,diastolic,pulse,notes";
+      filename = "heart.csv"
+      break;
+    default:
+      console.error(`Unhandled template type: ${templateType}`)
+      return;
+  }
+
+  const blob = new Blob([template], { type: "text/csv; charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+
+  document.body.appendChild(a);
+  a.click();
+
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 </script>
 
 <template>
@@ -103,16 +130,17 @@ function runAction(action: string) {
     <p>
       Upload a file with blood pressure data and see various statistics and graphics.
     </p>
-    <p>
-      Supported file formats: CSV (pipe delimited), XLSX (first sheet).
-      Below shows the CSV file format. The XLSX file should have the same headers on the first row.
-    </p>
-    <pre>
-date|time|systolic|diastolic|pulse|notes
-2026-08-01|03:00|121|81|56|meds; multiple
-2026-08-01|13:00|122|82|57|
-2026-08-02|21:35|120|80|55|
-    </pre>
+    <section class="upload">
+      Use this template for the file format.
+      <input
+        ref="fileInput"
+        type="file"
+        accept=".csv,.xlsx"
+        class="file-input"
+        @change="onFileChange"
+      >
+      <button type="button" @click="downloadTemplate('heart')">Download Template</button>
+    </section>
     <p>
       No medical data leaves the browser.
     </p>
