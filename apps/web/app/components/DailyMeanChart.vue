@@ -1,25 +1,29 @@
 <script setup lang="ts">
 import * as d3 from 'd3'
-import { dailyMeans, smoothedDailyMeans, type DailyMean } from '~/utils/dailyMeans'
+import { dailyMeans } from '~/utils/dailyMeans'
 import type { Entry } from '~/utils/parseHealthFile'
 
 const props = defineProps<{ entries: Entry[] }>()
 
 const svgEl = ref<SVGSVGElement | null>(null)
-const tooltipVisible = ref(false)
-const tooltipX = ref(0)
-const tooltipY = ref(0)
-const tooltipDate = ref('')
-const tooltipSystolic = ref(0)
-const tooltipDiastolic = ref(0)
+
+type PanelKey = 'meanSystolic' | 'meanDiastolic' | 'meanPulse'
+
+// One row per variable, each with its own y-scale and threshold band --
+// mirrors temp.R's facet_grid(rows = vars(variable), scales = "free_y").
+const PANELS: { key: PanelKey; label: string; colorClass: string; thresholds: [number, number] }[] = [
+  { key: 'meanSystolic', label: 'systolic', colorClass: 'series-systolic', thresholds: [120, 130] },
+  { key: 'meanDiastolic', label: 'diastolic', colorClass: 'series-diastolic', thresholds: [80, 90] },
+  { key: 'meanPulse', label: 'pulse', colorClass: 'series-pulse', thresholds: [55, 85] }
+]
 
 const WIDTH = 720
-const HEIGHT = 420
 const MARGIN = { top: 48, right: 24, bottom: 64, left: 56 }
+const PANEL_HEIGHT = 130
+const PANEL_GAP = 20
 const INNER_WIDTH = WIDTH - MARGIN.left - MARGIN.right
-const INNER_HEIGHT = HEIGHT - MARGIN.top - MARGIN.bottom
-
-const bisectDate = d3.bisector<DailyMean, Date>(d => d.date).left
+const PANELS_HEIGHT = PANELS.length * PANEL_HEIGHT + (PANELS.length - 1) * PANEL_GAP
+const HEIGHT = MARGIN.top + PANELS_HEIGHT + MARGIN.bottom
 
 function draw() {
   const svg = d3.select(svgEl.value)
@@ -28,19 +32,9 @@ function draw() {
   const data = dailyMeans(props.entries)
   if (data.length === 0) return
 
-  const smoothed = smoothedDailyMeans(data)
-
   const x = d3.scaleTime()
     .domain(d3.extent(data, d => d.date) as [Date, Date])
     .range([0, INNER_WIDTH])
-
-  const y = d3.scaleLinear()
-    .domain([
-      d3.min(data, d => Math.min(d.meanSystolic, d.meanDiastolic))! - 5,
-      d3.max(data, d => Math.max(d.meanSystolic, d.meanDiastolic))! + 5
-    ])
-    .range([INNER_HEIGHT, 0])
-    .nice()
 
   svg.attr('viewBox', `0 0 ${WIDTH} ${HEIGHT}`)
 
@@ -49,78 +43,82 @@ function draw() {
     .attr('x', WIDTH / 2)
     .attr('y', 24)
     .attr('text-anchor', 'middle')
-    .text('Daily Mean Systolic and Diastolic Pressure')
+    .text('Daily Mean Systolic, Diastolic, and Pulse')
 
   const root = svg.append('g').attr('transform', `translate(${MARGIN.left},${MARGIN.top})`)
 
-  root.append('g')
-    .attr('class', 'gridlines')
-    .call(d3.axisLeft(y).ticks(6).tickSize(-INNER_WIDTH).tickFormat(() => ''))
-    .call(g => g.select('.domain').remove())
+  PANELS.forEach((panel, i) => {
+    const panelTop = i * (PANEL_HEIGHT + PANEL_GAP)
+    const panelG = root.append('g').attr('class', 'panel').attr('transform', `translate(0,${panelTop})`)
 
-  root.append('g')
-    .attr('class', 'x-axis')
-    .attr('transform', `translate(0,${INNER_HEIGHT})`)
-    .call(d3.axisBottom(x).ticks(d3.timeMonth.every(1)).tickFormat(d => d3.timeFormat('%Y-%m')(d as Date)))
-    .selectAll('text')
-    .attr('transform', 'rotate(-45)')
-    .style('text-anchor', 'end')
+    const values = data.map(d => d[panel.key])
+    const [tMin, tMax] = panel.thresholds
+    const domainMin = Math.min(...values, tMin)
+    const domainMax = Math.max(...values, tMax)
+    const pad = (domainMax - domainMin) * 0.1 || 1
 
-  root.append('g')
-    .attr('class', 'y-axis')
-    .call(d3.axisLeft(y).ticks(6))
+    const y = d3.scaleLinear()
+      .domain([domainMin - pad, domainMax + pad])
+      .range([PANEL_HEIGHT, 0])
+      .nice()
 
-  root.append('text')
-    .attr('class', 'axis-label')
-    .attr('transform', 'rotate(-90)')
-    .attr('x', -INNER_HEIGHT / 2)
-    .attr('y', -40)
-    .attr('text-anchor', 'middle')
-    .text('Mean Pressure (mmHg)')
+    panelG.append('g')
+      .attr('class', 'gridlines')
+      .call(d3.axisLeft(y).ticks(4).tickSize(-INNER_WIDTH).tickFormat(() => ''))
+      .call(g => g.select('.domain').remove())
 
-  const trendLine = (accessor: (d: DailyMean) => number) =>
-    d3.line<DailyMean>()
-      .x(d => x(d.date))
-      .y(d => y(accessor(d)))
-      .curve(d3.curveMonotoneX)
+    panelG.append('g')
+      .attr('class', 'y-axis')
+      .call(d3.axisLeft(y).ticks(4))
 
-  root.append('path')
-    .datum(smoothed)
-    .attr('class', 'trend series-systolic')
-    .attr('d', trendLine(d => d.meanSystolic))
+    panelG.append('rect')
+      .attr('class', 'panel-border')
+      .attr('x', 0)
+      .attr('y', 0)
+      .attr('width', INNER_WIDTH)
+      .attr('height', PANEL_HEIGHT)
 
-  root.append('path')
-    .datum(smoothed)
-    .attr('class', 'trend series-diastolic')
-    .attr('d', trendLine(d => d.meanDiastolic))
+    panel.thresholds.forEach(v => {
+      panelG.append('line')
+        .attr('class', `threshold ${panel.colorClass}`)
+        .attr('x1', 0)
+        .attr('x2', INNER_WIDTH)
+        .attr('y1', y(v))
+        .attr('y2', y(v))
+    })
 
-  root.selectAll('.dot-systolic')
-    .data(data)
-    .join('circle')
-    .attr('class', 'dot dot-systolic series-systolic')
-    .attr('cx', d => x(d.date))
-    .attr('cy', d => y(d.meanSystolic))
-    .attr('r', 4)
+    panelG.selectAll(`.dot-${panel.key}`)
+      .data(data)
+      .join('circle')
+      .attr('class', `dot ${panel.colorClass}`)
+      .attr('cx', d => x(d.date))
+      .attr('cy', d => y(d[panel.key]))
+      .attr('r', 2)
 
-  root.selectAll('.dot-diastolic')
-    .data(data)
-    .join('circle')
-    .attr('class', 'dot dot-diastolic series-diastolic')
-    .attr('cx', d => x(d.date))
-    .attr('cy', d => y(d.meanDiastolic))
-    .attr('r', 4)
+    panelG.append('text')
+      .attr('class', 'facet-label')
+      .attr('x', INNER_WIDTH - 4)
+      .attr('y', 14)
+      .attr('text-anchor', 'end')
+      .text(panel.label)
 
-  const legend = svg.append('g')
-    .attr('class', 'legend')
-    .attr('transform', `translate(${MARGIN.left},${HEIGHT - 16})`)
+    if (i === PANELS.length - 1) {
+      panelG.append('g')
+        .attr('class', 'x-axis')
+        .attr('transform', `translate(0,${PANEL_HEIGHT})`)
+        .call(d3.axisBottom(x).ticks(d3.timeMonth.every(1)).tickFormat(d => d3.timeFormat('%Y-%m')(d as Date)))
+        .selectAll('text')
+        .attr('transform', 'rotate(-45)')
+        .style('text-anchor', 'end')
 
-  const legendEntry = (i: number, cls: string, label: string) => {
-    const g = legend.append('g').attr('transform', `translate(${i * 110},0)`)
-    g.append('line').attr('class', `legend-key ${cls}`).attr('x1', 0).attr('x2', 20).attr('y1', 0).attr('y2', 0)
-    g.append('text').attr('class', 'legend-label').attr('x', 26).attr('y', 4).text(label)
-  }
-  legendEntry(0, 'series-systolic', 'Systolic')
-  legendEntry(1, 'series-diastolic', 'Diastolic')
+      panelG.append('text')
+        .attr('class', 'axis-label')
+        .attr('x', INNER_WIDTH / 2)
+        .attr('y', PANEL_HEIGHT + 58)
+        .attr('text-anchor', 'middle')
+        .text('Date')
+    }
+  })
 }
 
 onMounted(draw)
@@ -129,7 +127,7 @@ watch(() => props.entries, draw)
 
 <template>
   <div class="chart-container">
-    <svg ref="svgEl" class="chart-svg" role="img" aria-label="Daily mean systolic and diastolic pressure by month">
+    <svg ref="svgEl" class="chart-svg" role="img" aria-label="Daily mean systolic, diastolic, and pulse">
     </svg>
   </div>
 </template>
@@ -144,6 +142,7 @@ watch(() => props.entries, draw)
   --axis: #c3c2b7;
   --series-systolic: #2a78d6;
   --series-diastolic: #eb6834;
+  --series-pulse: #1baf7a;
 
   position: relative;
   background: var(--surface-1);
@@ -166,6 +165,12 @@ watch(() => props.entries, draw)
   stroke-width: 1;
 }
 
+:deep(.panel-border) {
+  fill: none;
+  stroke: var(--axis);
+  stroke-width: 1;
+}
+
 :deep(.x-axis .domain),
 :deep(.y-axis .domain) {
   stroke: var(--axis);
@@ -182,17 +187,27 @@ watch(() => props.entries, draw)
   font-size: 12px;
 }
 
-:deep(.trend) {
-  fill: none;
-  stroke-width: 2;
+:deep(.facet-label) {
+  fill: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
 }
 
-:deep(.trend.series-systolic) {
+:deep(.threshold) {
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+
+:deep(.threshold.series-systolic) {
   stroke: var(--series-systolic);
 }
 
-:deep(.trend.series-diastolic) {
+:deep(.threshold.series-diastolic) {
   stroke: var(--series-diastolic);
+}
+
+:deep(.threshold.series-pulse) {
+  stroke: var(--series-pulse);
 }
 
 :deep(.dot) {
@@ -208,32 +223,7 @@ watch(() => props.entries, draw)
   fill: var(--series-diastolic);
 }
 
-:deep(.legend-key.series-systolic) {
-  stroke: var(--series-systolic);
-  stroke-width: 2;
-}
-
-:deep(.legend-key.series-diastolic) {
-  stroke: var(--series-diastolic);
-  stroke-width: 2;
-}
-
-:deep(.legend-label) {
-  fill: var(--text-secondary);
-  font-size: 12px;
-}
-
-.key {
-  display: inline-block;
-  width: 10px;
-  height: 2px;
-}
-
-.key.series-systolic {
-  background: var(--series-systolic);
-}
-
-.key.series-diastolic {
-  background: var(--series-diastolic);
+:deep(.dot.series-pulse) {
+  fill: var(--series-pulse);
 }
 </style>

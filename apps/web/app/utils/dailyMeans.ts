@@ -4,6 +4,7 @@ export type DailyMean = {
   date: Date
   meanSystolic: number
   meanDiastolic: number
+  meanPulse: number
 }
 
 function average(values: number[]): number {
@@ -25,7 +26,8 @@ export function dailyMeans(entries: Entry[]): DailyMean[] {
     .map(([date, dayEntries]) => ({
       date: new Date(`${date}T00:00:00`),
       meanSystolic: average(dayEntries.map(e => e.systolic)),
-      meanDiastolic: average(dayEntries.map(e => e.diastolic))
+      meanDiastolic: average(dayEntries.map(e => e.diastolic)),
+      meanPulse: average(dayEntries.map(e => e.pulse))
     }))
     .sort((a, b) => a.date.getTime() - b.date.getTime())
 }
@@ -43,5 +45,6 @@ function rollingAverage(values: number[], windowSize: number): number[] {
 export function smoothedDailyMeans(data: DailyMean[], windowSize = 30): DailyMean[] {
   const systolic = rollingAverage(data.map(d => d.meanSystolic), windowSize)
   const diastolic = rollingAverage(data.map(d => d.meanDiastolic), windowSize)
-  return data.map((d, i) => ({ date: d.date, meanSystolic: systolic[i]!, meanDiastolic: diastolic[i]! }))
+  const pulse = rollingAverage(data.map(d => d.meanPulse), windowSize)
+  return data.map((d, i) => ({ date: d.date, meanSystolic: systolic[i]!, meanDiastolic: diastolic[i]!, meanPulse: pulse[i]! }))
 }
