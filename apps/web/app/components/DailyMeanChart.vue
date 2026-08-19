@@ -123,14 +123,122 @@ function draw() {
 
 onMounted(draw)
 watch(() => props.entries, draw)
+
+function handleAfterPrint() {
+  document.body.classList.remove('is-printing-chart')
+}
+
+onMounted(() => window.addEventListener('afterprint', handleAfterPrint))
+onUnmounted(() => window.removeEventListener('afterprint', handleAfterPrint))
+
+function printChart() {
+  document.body.classList.add('is-printing-chart')
+  window.print()
+}
+
+// The exported SVG is a standalone document with no access to this
+// component's (scoped, page-resident) stylesheet, so the marks' appearance
+// has to travel with the markup as an inlined <style> -- plain equivalents
+// of the scoped rules below, literal colors instead of CSS custom properties
+// (same constraint the Chart.js sibling components hit with canvas).
+const EXPORT_STYLES = `
+  .chart-title { fill: #0b0b0b; font-size: 15px; font-weight: 600; font-family: "Noto Sans", Verdana, sans-serif; }
+  .gridlines line { stroke: #e1e0d9; stroke-width: 1; }
+  .panel-border { fill: none; stroke: #c3c2b7; stroke-width: 1; }
+  .x-axis .domain, .y-axis .domain { stroke: #c3c2b7; }
+  .x-axis text, .y-axis text { fill: #898781; font-size: 11px; font-family: "Noto Sans", Verdana, sans-serif; }
+  .axis-label { fill: #52514e; font-size: 12px; font-family: "Noto Sans", Verdana, sans-serif; }
+  .facet-label { fill: #52514e; font-size: 11px; font-weight: 600; font-family: "Noto Sans", Verdana, sans-serif; }
+  .threshold { stroke-width: 1.5; stroke-dasharray: 5 4; }
+  .threshold.series-systolic { stroke: #2a78d6; }
+  .threshold.series-diastolic { stroke: #eb6834; }
+  .threshold.series-pulse { stroke: #1baf7a; }
+  .dot { stroke: #fcfcfb; stroke-width: 2; }
+  .dot.series-systolic { fill: #2a78d6; }
+  .dot.series-diastolic { fill: #eb6834; }
+  .dot.series-pulse { fill: #1baf7a; }
+`
+
+async function saveAsPng() {
+  if (!svgEl.value) return
+
+  const clone = svgEl.value.cloneNode(true) as SVGSVGElement
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+  clone.setAttribute('width', String(WIDTH))
+  clone.setAttribute('height', String(HEIGHT))
+  const style = document.createElementNS('http://www.w3.org/2000/svg', 'style')
+  style.textContent = EXPORT_STYLES
+  clone.insertBefore(style, clone.firstChild)
+
+  const svgString = new XMLSerializer().serializeToString(clone)
+  const svgUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`
+
+  const img = new Image()
+  img.src = svgUrl
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve()
+    img.onerror = () => reject(new Error('Failed to render chart image'))
+  })
+
+  const scale = 2
+  const canvas = document.createElement('canvas')
+  canvas.width = WIDTH * scale
+  canvas.height = HEIGHT * scale
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  ctx.scale(scale, scale)
+  ctx.fillStyle = '#fcfcfb'
+  ctx.fillRect(0, 0, WIDTH, HEIGHT)
+  ctx.drawImage(img, 0, 0, WIDTH, HEIGHT)
+
+  canvas.toBlob((blob) => {
+    if (!blob) return
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `daily-mean-chart-${new Date().toISOString().slice(0, 10)}.png`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }, 'image/png')
+}
 </script>
 
 <template>
-  <div class="chart-container">
+  <div class="chart-container chart-print-target">
+    <div class="chart-toolbar">
+      <button type="button" @click="printChart">Print Chart</button>
+      <button type="button" @click="saveAsPng">Save as PNG</button>
+    </div>
     <svg ref="svgEl" class="chart-svg" role="img" aria-label="Daily mean systolic, diastolic, and pulse">
     </svg>
   </div>
 </template>
+
+<style>
+@media print {
+  body.is-printing-chart * {
+    visibility: hidden;
+  }
+
+  body.is-printing-chart .chart-print-target,
+  body.is-printing-chart .chart-print-target * {
+    visibility: visible;
+  }
+
+  body.is-printing-chart .chart-print-target {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+
+  body.is-printing-chart .chart-toolbar {
+    display: none !important;
+  }
+}
+</style>
 
 <style scoped>
 .chart-container {
@@ -146,6 +254,13 @@ watch(() => props.entries, draw)
 
   position: relative;
   background: var(--surface-1);
+}
+
+.chart-toolbar {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 8px 8px 0;
 }
 
 .chart-svg {
