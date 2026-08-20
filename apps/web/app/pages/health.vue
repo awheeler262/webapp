@@ -47,7 +47,7 @@ async function onFileChange(event: Event) {
 
   records.value = parsed
   const payload: HealthRequestDto = {
-    service: 'blood',
+    service: 'heart',
     timestamp: new Date().toISOString(),
     count: parsed.length,
     hash: await hashFile(parsed)
@@ -126,30 +126,19 @@ function downloadTemplate(templateType: string) {
 
 <template>
   <main class="health">
-    <h1>Blood Pressure Visualization</h1>
+    <h1>Visualize Wellness</h1>
     <p>
-      Upload a file with blood pressure data and see various statistics and graphics.
-    </p>
-    <section class="upload">
-      Use this template for the file format.
-      <input
-        ref="fileInput"
-        type="file"
-        accept=".csv,.xlsx"
-        class="file-input"
-        @change="onFileChange"
-      >
-      <button type="button" @click="downloadTemplate('heart')">Download Template</button>
-    </section>
-    <p>
-      No medical data leaves the browser.
-    </p>
-    <p>
-      The transaction shows the information about the file that gets sent
-      to a server for billing in a future release.
+      Load a file with medical or wellness data and see various statistics and graphics.
+      No sensitive data leaves the browser.
+      Limited information about the file (service, timestamp, record count, file hash)
+      gets sent to a server for billing in a future release.
     </p>
     <hr>
     <section class="upload">
+      <button type="button" @click="downloadTemplate('heart')">File Template</button>
+      Add blood pressure data to the template.
+    </section>
+    <section class="upload">
       <input
         ref="fileInput"
         type="file"
@@ -157,7 +146,8 @@ function downloadTemplate(templateType: string) {
         class="file-input"
         @change="onFileChange"
       >
-      <button type="button" @click="triggerUpload">{{ fileName || 'Upload File' }}</button>
+      <button type="button" @click="triggerUpload">{{ fileName || 'Load File' }}</button>
+      Load blood pressure data into the browser to see various statistics and graphics.
       <p v-if="uploadError" class="error" role="alert">{{ uploadError }}</p>
       <p v-if="submitted && transaction" class="success">
         Loaded {{ transaction.count }} reading(s) &mdash; transaction {{ transaction.hash.slice(0, 8) }}
@@ -165,9 +155,10 @@ function downloadTemplate(templateType: string) {
     </section>
 
     <section v-if="submitted" class="actions">
+      <!-- Pending review
       <button type="button" @click="runAction('summary')">Summary</button>
       <button type="button" @click="runAction('latest')">Latest Reading</button>
-      <button type="button" @click="runAction('abnormal')">Flag Abnormal</button>
+      <button type="button" @click="runAction('abnormal')">Flag Abnormal</button> -->
       <button type="button" @click="runAction('transaction')">Show Transaction</button>
       <button type="button" @click="runAction('chart')">Daily Mean Chart</button>
       <button type="button" @click="runAction('monthly')">Monthly Boxplot</button>

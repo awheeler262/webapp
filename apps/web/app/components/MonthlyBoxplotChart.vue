@@ -70,9 +70,10 @@ function draw() {
       .call(d3.axisLeft(y).tickValues(d3.range(yMin, yMax + 1, 5)).tickSize(-INNER_WIDTH).tickFormat(() => ''))
       .call(g => g.select('.domain').remove())
 
+    const tickSpace = panel.metric == 'systolic' ? 10 : 5
     panelG.append('g')
       .attr('class', 'y-axis')
-      .call(d3.axisLeft(y).tickValues(d3.range(yMin, yMax + 1, 5)))
+      .call(d3.axisLeft(y).tickValues(d3.range(yMin, yMax + 1, tickSpace)))
 
     panelG.append('rect')
       .attr('class', 'panel-border')
