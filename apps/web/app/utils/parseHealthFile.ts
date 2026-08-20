@@ -9,7 +9,7 @@ export type Entry = {
   notes: string // empty or any character except delimiter
 }
 
-const DELIMITER = '|'
+const DELIMITER = ','
 const EXPECTED_COLUMNS = ['date', 'time', 'systolic', 'diastolic', 'pulse', 'notes']
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/
