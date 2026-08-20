@@ -1,127 +1,16 @@
 <script setup lang="ts">
 definePageMeta({ requiresAuth: false })
 
-import { parseCsv, parseXlsx, type Entry } from '~/utils/parseHealthFile'
-import type { HealthRequestDto, HealthResponseDto } from '@my-app/validation'
+import HeartPanel from '~/components/HeartPanel.vue'
 
-const records = ref<Entry[]>([])
-const transaction = ref<HealthRequestDto | null>(null)
-const submitted = ref(false)
-const uploadError = ref('')
-const selectedAction = ref('')
-const resultOutput = ref('')
-const fileInput = ref<HTMLInputElement | null>(null)
-const fileName = ref('')
+// Each entry is a self-contained category panel (its own template, upload
+// flow, actions, and charts). Adding a category is: build its panel
+// component, register it here -- nothing else on this page changes.
+const CATEGORIES = [
+  { id: 'heart', label: 'Heart', component: HeartPanel }
+]
 
-async function hashFile(entries: Entry[]): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(entries)))
-  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('')
-}
-
-function triggerUpload() {
-  fileInput.value?.click()
-}
-
-async function onFileChange(event: Event) {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-  input.value = ''
-  if (!file) return
-
-  fileName.value = file.name
-  uploadError.value = ''
-  selectedAction.value = ''
-  resultOutput.value = ''
-  submitted.value = false
-  records.value = []
-  transaction.value = null
-
-  let parsed: Entry[]
-  try {
-    const isXlsx = file.name.toLowerCase().endsWith('.xlsx')
-    parsed = isXlsx ? await parseXlsx(file) : parseCsv(await file.text())
-  } catch (err) {
-    uploadError.value = err instanceof Error ? err.message : 'Failed to parse file'
-    return
-  }
-
-  records.value = parsed
-  const payload: HealthRequestDto = {
-    service: 'heart',
-    timestamp: new Date().toISOString(),
-    count: parsed.length,
-    hash: await hashFile(parsed)
-  }
-  transaction.value = payload
-
-  try {
-    const $api = useApi()
-    const response = await $api<HealthResponseDto>('/api/health', {
-      method: 'POST',
-      body: payload
-    })
-    submitted.value = response.status === 'submitted'
-    if (!submitted.value) {
-      uploadError.value = `Submission was not accepted (status: "${response.status}")`
-    }
-  } catch (err) {
-    uploadError.value = err instanceof Error ? err.message : 'Failed to submit transaction'
-  }
-}
-
-function average(values: number[]): number {
-  return values.reduce((sum, v) => sum + v, 0) / values.length
-}
-
-function runAction(action: string) {
-  selectedAction.value = action
-
-  if (action === 'summary') {
-    resultOutput.value = JSON.stringify({
-      readings: records.value.length,
-      avgSystolic: Math.round(average(records.value.map(r => r.systolic))),
-      avgDiastolic: Math.round(average(records.value.map(r => r.diastolic))),
-      avgPulse: Math.round(average(records.value.map(r => r.pulse)))
-    }, null, 2)
-  } else if (action === 'latest') {
-    const latest = [...records.value].sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`)).at(-1)
-    resultOutput.value = latest ? JSON.stringify(latest, null, 2) : 'No readings'
-  } else if (action === 'abnormal') {
-    const abnormal = records.value.filter(r => r.systolic >= 140 || r.diastolic >= 90)
-    resultOutput.value = abnormal.length > 0 ? JSON.stringify(abnormal, null, 2) : 'No abnormal readings'
-  } else if (action === 'transaction') {
-    resultOutput.value = transaction.value ? JSON.stringify(transaction.value, null, 2) : 'No transaction'
-  } else if (action === 'chart' || action === 'monthly') {
-    resultOutput.value = ''
-  }
-}
-
-function downloadTemplate(templateType: string) {
-  let template = "";
-  let filename = "";
-  switch (templateType) {
-    case 'heart':
-      template = "date,time,systolic,diastolic,pulse,notes";
-      filename = "heart.csv"
-      break;
-    default:
-      console.error(`Unhandled template type: ${templateType}`)
-      return;
-  }
-
-  const blob = new Blob([template], { type: "text/csv; charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-
-  document.body.appendChild(a);
-  a.click();
-
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
+const activeCategory = ref(CATEGORIES[0]!.id)
 </script>
 
 <template>
@@ -134,43 +23,35 @@ function downloadTemplate(templateType: string) {
       gets sent to a server for billing in a future release.
     </p>
     <hr>
-    <section class="upload">
-      <button type="button" @click="downloadTemplate('heart')">File Template</button>
-      Add blood pressure data to the template.
-    </section>
-    <section class="upload">
-      <input
-        ref="fileInput"
-        type="file"
-        accept=".csv,.xlsx"
-        class="file-input"
-        @change="onFileChange"
+
+    <div class="tabs" role="tablist" aria-label="Wellness categories">
+      <button
+        v-for="category in CATEGORIES"
+        :key="category.id"
+        type="button"
+        role="tab"
+        :id="`tab-${category.id}`"
+        :aria-selected="activeCategory === category.id"
+        :aria-controls="`panel-${category.id}`"
+        :class="{ active: activeCategory === category.id }"
+        @click="activeCategory = category.id"
       >
-      <button type="button" @click="triggerUpload">{{ fileName || 'Load File' }}</button>
-      Load blood pressure data into the browser to see various statistics and graphics.
-      <p v-if="uploadError" class="error" role="alert">{{ uploadError }}</p>
-      <p v-if="submitted && transaction" class="success">
-        Loaded {{ transaction.count }} reading(s) &mdash; transaction {{ transaction.hash.slice(0, 8) }}
-      </p>
-    </section>
+        {{ category.label }}
+      </button>
+    </div>
 
-    <section v-if="submitted" class="actions">
-      <!-- Pending review
-      <button type="button" @click="runAction('summary')">Summary</button>
-      <button type="button" @click="runAction('latest')">Latest Reading</button>
-      <button type="button" @click="runAction('abnormal')">Flag Abnormal</button> -->
-      <button type="button" @click="runAction('transaction')">Show Transaction</button>
-      <button type="button" @click="runAction('chart')">Daily Mean Chart</button>
-      <button type="button" @click="runAction('monthly')">Monthly Boxplot</button>
-    </section>
-
-    <section v-if="submitted" class="results">
-      <h2>Results</h2>
-      <DailyMeanChart v-if="selectedAction === 'chart'" :entries="records" />
-      <MonthlyBoxplotChart v-else-if="selectedAction === 'monthly'" :entries="records" />
-      <pre v-else-if="resultOutput">{{ resultOutput }}</pre>
-      <p v-else>Select an action above.</p>
-    </section>
+    <!-- v-show (not v-if) so switching tabs never loses a category's loaded
+         file/results -- every panel stays mounted once its tab is visited. -->
+    <div
+      v-for="category in CATEGORIES"
+      :key="category.id"
+      v-show="activeCategory === category.id"
+      :id="`panel-${category.id}`"
+      role="tabpanel"
+      :aria-labelledby="`tab-${category.id}`"
+    >
+      <component :is="category.component" />
+    </div>
   </main>
 </template>
 
@@ -187,7 +68,28 @@ h1 {
   text-align: center;
 }
 
-.file-input {
-  display: none;
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border-bottom: 1px solid #c3c2b7;
+  margin-bottom: 1.5rem;
+}
+
+.tabs button {
+  padding: 0.5rem 1rem;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.tabs button.active {
+  border-color: #c3c2b7;
+  background: #fff;
+  font-weight: 600;
 }
 </style>
