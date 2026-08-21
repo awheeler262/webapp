@@ -14,6 +14,53 @@ const EXPECTED_COLUMNS = ['date', 'time', 'systolic', 'diastolic', 'pulse', 'not
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/
 
+// RFC 4180-style split: a field wrapped in "..." may contain the delimiter,
+// with "" as an escaped literal quote. Does not span quoted fields across
+// multiple physical lines -- rows are already split on newlines beforehand.
+function splitCsvRow(line: string): string[] {
+  const cells: string[] = []
+  let current = ''
+  let inQuotes = false
+  let atFieldStart = true
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i]!
+
+    if (inQuotes) {
+      if (char === '"') {
+        if (line[i + 1] === '"') {
+          current += '"'
+          i++
+        } else {
+          inQuotes = false
+        }
+      } else {
+        current += char
+      }
+      continue
+    }
+
+    if (char === '"' && atFieldStart) {
+      inQuotes = true
+      atFieldStart = false
+      continue
+    }
+
+    if (char === DELIMITER) {
+      cells.push(current.trim())
+      current = ''
+      atFieldStart = true
+      continue
+    }
+
+    current += char
+    if (char.trim() !== '') atFieldStart = false
+  }
+
+  cells.push(current.trim())
+  return cells
+}
+
 function isValidCalendarDate(value: string): boolean {
   const [year, month, day] = value.split('-').map(Number)
   const parsed = new Date(Date.UTC(year!, month! - 1, day!))
@@ -90,10 +137,10 @@ export function parseCsv(text: string): Entry[] {
     throw new Error('File is empty')
   }
 
-  const header = lines[0]!.split(DELIMITER).map(h => h.trim())
+  const header = splitCsvRow(lines[0]!)
   checkHeader(header)
 
-  const rows = lines.slice(1).map(line => line.split(DELIMITER).map(c => c.trim()))
+  const rows = lines.slice(1).map(splitCsvRow)
   return buildEntries(header, rows)
 }
 
