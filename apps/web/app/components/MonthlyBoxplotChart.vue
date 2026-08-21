@@ -27,7 +27,8 @@ function draw() {
   const svg = d3.select(svgEl.value)
   svg.selectAll('*').remove()
 
-  const months = monthlyBoxplotStats(props.entries, 'systolic').map(s => s.yearMonth)
+  const statsByPanel = PANELS.map(panel => monthlyBoxplotStats(props.entries, panel.metric))
+  const months = statsByPanel[0]!.map(s => s.yearMonth)
   if (months.length === 0) return
 
   const x = d3.scaleBand()
@@ -53,7 +54,7 @@ function draw() {
     const panelTop = i * (PANEL_HEIGHT + PANEL_GAP)
     const panelG = root.append('g').attr('class', 'panel').attr('transform', `translate(0,${panelTop})`)
 
-    const stats = monthlyBoxplotStats(props.entries, panel.metric)
+    const stats = statsByPanel[i]!
     const [tMin, tMax] = panel.thresholds
     const allValues = stats.flatMap(s => [s.min, s.max, ...s.outliers])
     const domainMin = Math.min(...allValues, tMin)
