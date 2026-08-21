@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest'
-import { parseCsv } from './parseHealthFile'
+import { describe, expect, it, vi } from 'vitest'
+import { parseCsv, parseXlsx } from './parseHealthFile'
+
+vi.mock('read-excel-file/browser', () => ({ readSheet: vi.fn() }))
+const { readSheet } = await import('read-excel-file/browser')
 
 describe('parseCsv', () => {
   it('parses comma-delimited rows into Entry objects', () => {
@@ -62,6 +65,21 @@ describe('parseCsv', () => {
         pulse: 56,
         notes: 'doctor said "take with food"'
       }
+    ])
+  })
+})
+
+describe('parseXlsx', () => {
+  it('formats Date-typed date and time cells (as read-excel-file returns for date/time-formatted Excel columns) into %Y-%m-%d and %H:%M', async () => {
+    vi.mocked(readSheet).mockResolvedValue([
+      ['date', 'time', 'systolic', 'diastolic', 'pulse', 'notes'],
+      [new Date(Date.UTC(2026, 7, 1)), new Date(Date.UTC(1899, 11, 31, 23, 5)), 121, 81, 56, 'meds']
+    ])
+
+    const entries = await parseXlsx(new File([], 'blood.xlsx'))
+
+    expect(entries).toEqual([
+      { date: '2026-08-01', time: '23:05', systolic: 121, diastolic: 81, pulse: 56, notes: 'meds' }
     ])
   })
 })

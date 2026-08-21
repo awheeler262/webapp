@@ -144,9 +144,21 @@ export function parseCsv(text: string): Entry[] {
   return buildEntries(header, rows)
 }
 
-function stringifyCell(value: unknown): string {
+function pad2(n: number): string {
+  return String(n).padStart(2, '0')
+}
+
+// `column` disambiguates how a Date-typed cell should be rendered back to
+// text -- read-excel-file returns real Date objects for any cell Excel has
+// formatted as a date or time, and "date" vs. "time" need different string
+// shapes (%Y-%m-%d vs. %H:%M) to pass validateRow's regexes.
+function stringifyCell(value: unknown, column?: string): string {
   if (value === null || value === undefined) return ''
-  if (value instanceof Date) return value.toISOString()
+  if (value instanceof Date) {
+    return column === 'time'
+      ? `${pad2(value.getUTCHours())}:${pad2(value.getUTCMinutes())}`
+      : value.toISOString().slice(0, 10)
+  }
   return String(value).trim()
 }
 
@@ -156,9 +168,9 @@ export async function parseXlsx(file: File): Promise<Entry[]> {
     throw new Error('File is empty')
   }
 
-  const header = rows[0]!.map(stringifyCell)
+  const header = rows[0]!.map(cell => stringifyCell(cell))
   checkHeader(header)
 
-  const dataRows = rows.slice(1).map(row => row.map(stringifyCell))
+  const dataRows = rows.slice(1).map(row => row.map((cell, i) => stringifyCell(cell, header[i])))
   return buildEntries(header, dataRows)
 }
