@@ -20,7 +20,7 @@ const activeCategory = ref(CATEGORIES[0]!.id)
       Load a file with medical or wellness data and see various statistics and graphics.
       No sensitive data leaves the browser.
       Limited information about the file (service, timestamp, record count, file hash)
-      gets sent to a server for billing in a future release.
+      gets sent to a server for billing and usage metrics.
     </p>
     <hr>
 
