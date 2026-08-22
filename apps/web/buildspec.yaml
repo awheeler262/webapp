@@ -8,8 +8,7 @@ phases:
       - pnpm install --frozen-lockfile --filter web...
   build:
     commands:
-      - cd apps/web && pnpm run typecheck && pnpm run test
-      - cd apps/web && pnpm run generate
+      - cd apps/web && pnpm run typecheck && pnpm run test && pnpm run generate
   post_build:
     commands:
       # CodeBuild carries the shell's cwd over between phases -- the build phase's
