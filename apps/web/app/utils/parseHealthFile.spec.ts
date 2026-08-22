@@ -1,8 +1,14 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, type Mock } from 'vitest'
 import { parseCsv, parseXlsx } from './parseHealthFile'
 
 vi.mock('read-excel-file/browser', () => ({ readSheet: vi.fn() }))
 const { readSheet } = await import('read-excel-file/browser')
+// readSheet is overloaded (plain read vs. schema-based read), and
+// ReturnType<>-style utility types -- which vi.mocked() relies on --
+// always resolve to the *last* overload (the schema-based one, which
+// parseXlsx never actually calls) rather than the one actually in use
+// here. Mock it via vitest's untyped Mock instead of fighting that.
+const mockedReadSheet = readSheet as unknown as Mock
 
 describe('parseCsv', () => {
   it('parses comma-delimited rows into Entry objects', () => {
@@ -71,7 +77,7 @@ describe('parseCsv', () => {
 
 describe('parseXlsx', () => {
   it('formats Date-typed date and time cells (as read-excel-file returns for date/time-formatted Excel columns) into %Y-%m-%d and %H:%M', async () => {
-    vi.mocked(readSheet).mockResolvedValue([
+    mockedReadSheet.mockResolvedValue([
       ['date', 'time', 'systolic', 'diastolic', 'pulse', 'notes'],
       [new Date(Date.UTC(2026, 7, 1)), new Date(Date.UTC(1899, 11, 31, 23, 5)), 121, 81, 56, 'meds']
     ])
