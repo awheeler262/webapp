@@ -1,6 +1,6 @@
-import type { HealthRequestDto, HealthResponseDto } from '@my-app/validation'
+import type { HealthRequestDto, HealthResponseDto, HealthService } from '@my-app/validation'
 
-export function useHealthUpload<T>(options: { service: string; parseFile: (file: File) => Promise<T[]> }) {
+export function useHealthUpload<T>(options: { service: HealthService; parseFile: (file: File) => Promise<T[]> }) {
   const records = ref<T[]>([])
   const transaction = ref<HealthRequestDto | null>(null)
   const submitted = ref(false)

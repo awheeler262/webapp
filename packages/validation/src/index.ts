@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { IsDateString, IsEmail, IsNumber, IsString, Min, MinLength } from 'class-validator';
+import { IsDateString, IsEmail, IsIn, IsNumber, IsString, Matches, Min, MinLength } from 'class-validator';
 
 export const CreateUserSchema = z.object({
   email: z.string().email(),
@@ -34,9 +34,17 @@ export class BoostResponseDto {
   status: string;
 }
 
+// The set of health data categories the backend accepts. Adding a new
+// category panel on the frontend (see apps/web's health.vue CATEGORIES)
+// requires adding its id here too -- deliberately, since this drives what
+// gets accepted for what's ultimately billing attribution, not just a free
+// -text label.
+export const HEALTH_SERVICES = ['heart'] as const;
+export type HealthService = typeof HEALTH_SERVICES[number];
+
 export class HealthRequestDto {
-  @IsString()
-  service: string;
+  @IsIn(HEALTH_SERVICES)
+  service: HealthService;
 
   @IsDateString()
   timestamp: string;
@@ -45,7 +53,9 @@ export class HealthRequestDto {
   @Min(0)
   count: number;
 
-  @IsString()
+  // Lowercase hex SHA-256 digest -- exactly what hashFile() in
+  // apps/web's useHealthUpload.ts always produces.
+  @Matches(/^[a-f0-9]{64}$/)
   hash: string;
 }
 
