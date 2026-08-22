@@ -1,0 +1,13 @@
+# Commits listed here are skipped by `git blame` (and by GitHub's blame view
+# automatically) because they bundle unrelated changes -- typically a
+# whitespace-only reformat -- alongside real feature work, which makes blame
+# output point at the wrong commit for the actual history of a line.
+#
+# This file doesn't affect `git log`/`git bisect`; it only changes what
+# `git blame` attributes a line to. To use it locally:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# API -- Add health endpoint -- bundled a large whitespace-only reformat of
+# unrelated apps/api/src/modules/auth and users files alongside the actual
+# health-endpoint change.
+1dbde09ce0cab636a34bdcdbbd8681197e4229c9
