@@ -9,6 +9,7 @@ export class HealthService {
   constructor(private config: ConfigService) {}
 
   process(dto: HealthRequestDto): HealthResponseDto {
+    this.logger.log(JSON.stringify(dto));
     return {
       service: dto.service,
       timestamp: dto.timestamp,

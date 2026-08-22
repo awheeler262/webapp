@@ -9,7 +9,8 @@ import { ConfigService } from '../../config/config.service';
 // read it to build an Authorization header anymore, so extract it from the cookie
 // jar (populated by cookie-parser, see app.config.ts's configureCookies) instead.
 export function fromAuthCookie(req: Request): string | null {
-  return req?.cookies?.auth_token ?? null;
+  const token = req?.cookies?.auth_token as string | undefined;
+  return token ?? null;
 }
 
 @Injectable()

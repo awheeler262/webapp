@@ -34,7 +34,11 @@ describe('Auth cookie flow (e2e)', () => {
 
     usersService = app.get(UsersService);
     dataSource = app.get(DATA_SOURCE);
-    await usersService.create({ email, name: 'Auth Cookie E2E', password } as any);
+    await usersService.create({
+      email,
+      name: 'Auth Cookie E2E',
+      password,
+    });
   });
 
   afterAll(async () => {
@@ -68,9 +72,9 @@ describe('Auth cookie flow (e2e)', () => {
       .post('/auth/login')
       .send({ email, password })
       .expect(200);
-    const setCookie = (loginRes.headers['set-cookie'] as unknown as string[]).find((c) =>
-      c.startsWith('auth_token='),
-    )!;
+    const setCookie = (
+      loginRes.headers['set-cookie'] as unknown as string[]
+    ).find((c) => c.startsWith('auth_token='))!;
     // The request Cookie header only takes name=value pairs -- strip the
     // Path/HttpOnly/Secure/SameSite/Expires attributes Set-Cookie appends.
     const cookie = setCookie.split(';')[0];
@@ -82,7 +86,12 @@ describe('Auth cookie flow (e2e)', () => {
     // /me's user comes from UsersService.findById() (the full record), unlike
     // login()'s response which only carries the minimal {id, email} it signed.
     expect(meRes.body).toEqual({
-      user: { id: expect.any(String), email, name: 'Auth Cookie E2E', createdAt: expect.any(String) },
+      user: {
+        id: expect.any(String),
+        email,
+        name: 'Auth Cookie E2E',
+        createdAt: expect.any(String),
+      },
       expiresAt: expect.any(Number),
     });
 
@@ -90,7 +99,9 @@ describe('Auth cookie flow (e2e)', () => {
   });
 
   it('logout clears the cookie', async () => {
-    const res = await request(app.getHttpServer()).post('/auth/logout').expect(200);
+    const res = await request(app.getHttpServer())
+      .post('/auth/logout')
+      .expect(200);
 
     const setCookie = res.headers['set-cookie'] as unknown as string[];
     const authCookie = setCookie.find((c) => c.startsWith('auth_token='));

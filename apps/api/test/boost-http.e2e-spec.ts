@@ -64,7 +64,7 @@ describe('POST /boost/query -> AppModule -> sam local start-lambda (e2e)', () =>
       email,
       name: 'Boost HTTP E2E',
       password: 'plaintext-password-123',
-    } as any);
+    });
     realUserId = user.id;
   });
 

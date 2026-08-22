@@ -2,6 +2,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import express from 'express';
+import type { NextFunction, Request, Response } from 'express';
 
 export function configureCookies(app: INestApplication) {
   app.use(cookieParser());
@@ -41,7 +42,7 @@ export function configureHelmet(app: INestApplication) {
 // per response (e.g. `application/json; charset=utf-8` via res.json()), so forcing
 // a blanket value here would just get overwritten on every real response anyway.
 export function configureSecurityHeaders(app: INestApplication) {
-  app.use((req, res, next) => {
+  app.use((req: Request, res: Response, next: NextFunction) => {
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Permissions-Policy', 'interest-cohort=()');
     next();

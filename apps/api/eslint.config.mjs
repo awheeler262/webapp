@@ -32,4 +32,22 @@ export default tseslint.config(
       "prettier/prettier": ["error", { endOfLine: "auto" }],
     },
   },
+  {
+    // Two well-known Jest/typescript-eslint false positives, both stemming
+    // from Jest's own types being deliberately loose:
+    //  - `expect(mockObj.method).toHaveBeenCalled()` statically looks like an
+    //    unbound method reference even though a jest mock function never
+    //    relies on `this`.
+    //  - `expect.any(String)` (and friends) is typed `any` by design, so
+    //    building an object literal around it for `.toEqual()` trips
+    //    no-unsafe-assignment even though the assertion is exactly the point.
+    // Scoped to test files only -- `**/*.spec.ts` covers colocated unit
+    // specs, `**/*.e2e-spec.ts` covers test/*.e2e-spec.ts (its "-spec.ts"
+    // suffix doesn't match the first glob).
+    files: ['**/*.spec.ts', '**/*.e2e-spec.ts'],
+    rules: {
+      '@typescript-eslint/unbound-method': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+    },
+  },
 );

@@ -47,7 +47,7 @@ describe('JwtAuthGuard (e2e)', () => {
       email,
       name: 'JWT E2E',
       password: 'plaintext-password-123',
-    } as any);
+    });
     realUserId = user.id;
   });
 

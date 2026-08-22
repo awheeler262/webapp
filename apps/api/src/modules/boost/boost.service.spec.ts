@@ -14,7 +14,9 @@ function sentCommand(lambda: LambdaClientMock): InvokeCommand {
 }
 
 function sentEvent<T>(command: InvokeCommand): T {
-  return JSON.parse(Buffer.from(command.input.Payload!).toString('utf-8')) as T;
+  return JSON.parse(
+    Buffer.from(command.input.Payload as Uint8Array).toString('utf-8'),
+  ) as T;
 }
 
 describe('BoostService', () => {

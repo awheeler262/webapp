@@ -1,20 +1,34 @@
 import { UnauthorizedException } from '@nestjs/common';
+import type { Request } from 'express';
 import { JwtStrategy, fromAuthCookie } from './jwt.strategy';
 import { UsersService } from '../users/users.service';
 import { ConfigService } from '../../config/config.service';
 
+// passport-jwt's internal secretOrKeyProvider isn't part of PassportStrategy's
+// public type, so tests below reach it via a cast -- to this minimal shape
+// instead of `any`, so the call itself stays type-checked.
+interface StrategyWithSecretProvider {
+  _secretOrKeyProvider(
+    request: unknown,
+    rawJwtToken: string,
+    done: (err: unknown, secret?: string) => void,
+  ): void;
+}
+
 describe('fromAuthCookie', () => {
   it('reads the token from the auth_token cookie', () => {
-    const req = { cookies: { auth_token: 'the-token' } } as any;
+    const req = {
+      cookies: { auth_token: 'the-token' },
+    } as unknown as Request;
     expect(fromAuthCookie(req)).toBe('the-token');
   });
 
   it('returns null when no auth_token cookie is present', () => {
-    expect(fromAuthCookie({ cookies: {} } as any)).toBeNull();
+    expect(fromAuthCookie({ cookies: {} } as unknown as Request)).toBeNull();
   });
 
   it('returns null when cookie-parser has not populated req.cookies at all', () => {
-    expect(fromAuthCookie({} as any)).toBeNull();
+    expect(fromAuthCookie({} as unknown as Request)).toBeNull();
   });
 });
 
@@ -49,7 +63,7 @@ describe('JwtStrategy', () => {
       const configService = mockConfigService('resolved-secret');
       const strategy = new JwtStrategy(usersService, configService);
 
-      (strategy as any)._secretOrKeyProvider(
+      (strategy as unknown as StrategyWithSecretProvider)._secretOrKeyProvider(
         {},
         'raw-token',
         (err: unknown, secret?: string) => {
@@ -70,7 +84,7 @@ describe('JwtStrategy', () => {
       } as unknown as ConfigService;
       const strategy = new JwtStrategy(usersService, configService);
 
-      (strategy as any)._secretOrKeyProvider(
+      (strategy as unknown as StrategyWithSecretProvider)._secretOrKeyProvider(
         {},
         'raw-token',
         (err: unknown) => {
