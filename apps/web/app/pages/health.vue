@@ -1,12 +1,17 @@
 <script setup lang="ts">
 definePageMeta({ requiresAuth: false })
 
+import type { Component } from 'vue'
+import type { HealthService } from '@my-app/validation'
 import HeartPanel from '~/components/HeartPanel.vue'
 
 // Each entry is a self-contained category panel (its own template, upload
 // flow, actions, and charts). Adding a category is: build its panel
 // component, register it here -- nothing else on this page changes.
-const CATEGORIES = [
+// `id: HealthService` ties each entry back to the backend's allowed
+// service values, so a typo'd id fails to compile instead of silently
+// sending a service the API will reject.
+const CATEGORIES: { id: HealthService; label: string; component: Component }[] = [
   { id: 'heart', label: 'Heart', component: HeartPanel }
 ]
 
