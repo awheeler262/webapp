@@ -25,7 +25,8 @@ pnpm dev:api                 # nest start --watch, http://localhost:3001
 pnpm build:web               # nuxt generate -> apps/web/.output/public
 pnpm build:api               # nest build -> apps/api/dist
 
-pnpm --filter api lint       # eslint --fix (only apps/api defines a lint script today)
+pnpm --filter api lint       # eslint, no autofix -- CI-safe (only apps/api defines a lint script today)
+pnpm --filter api lint:fix   # eslint --fix, for local use
 
 pnpm --filter api test                    # jest unit tests (apps/api/src/**/*.spec.ts)
 pnpm --filter api test -- auth.service    # run spec files matching a pattern

@@ -8,6 +8,8 @@ phases:
       - pnpm install --frozen-lockfile --filter api...
   build:
     commands:
+      - pnpm --filter api run lint
+      - pnpm --filter api run test
       - pnpm --filter api run build
       - pnpm --filter api deploy --prod --legacy out/api
   post_build:
