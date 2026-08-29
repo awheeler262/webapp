@@ -149,10 +149,7 @@ const EXPORT_STYLES = `
   .x-axis text, .y-axis text { fill: #898781; font-size: 11px; font-family: "Noto Sans", Verdana, sans-serif; }
   .axis-label { fill: #52514e; font-size: 12px; font-family: "Noto Sans", Verdana, sans-serif; }
   .facet-label { fill: #52514e; font-size: 11px; font-weight: 600; font-family: "Noto Sans", Verdana, sans-serif; }
-  .threshold { stroke-width: 1.5; stroke-dasharray: 5 4; }
-  .threshold.series-systolic { stroke: #2a78d6; }
-  .threshold.series-diastolic { stroke: #eb6834; }
-  .threshold.series-pulse { stroke: #1baf7a; }
+  .threshold { stroke-width: 1.5; stroke-dasharray: 5 4; stroke: #000; }
   .dot { stroke: #fcfcfb; stroke-width: 2; }
   .dot.series-systolic { fill: #2a78d6; }
   .dot.series-diastolic { fill: #eb6834; }
@@ -311,18 +308,7 @@ async function saveAsPng() {
 :deep(.threshold) {
   stroke-width: 1.5;
   stroke-dasharray: 5 4;
-}
-
-:deep(.threshold.series-systolic) {
-  stroke: var(--series-systolic);
-}
-
-:deep(.threshold.series-diastolic) {
-  stroke: var(--series-diastolic);
-}
-
-:deep(.threshold.series-pulse) {
-  stroke: var(--series-pulse);
+  stroke: #000;
 }
 
 :deep(.dot) {

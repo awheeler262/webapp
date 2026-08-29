@@ -6,10 +6,18 @@ async function parseHeartFile(file: File): Promise<Entry[]> {
   return isXlsx ? await parseXlsx(file) : parseCsv(await file.text())
 }
 
+// Reuses the same parseCsv() a local .csv upload goes through, so
+// API-sourced and file-sourced data are parsed identically.
+async function fetchHeartExample(): Promise<Entry[]> {
+  const $api = useApi()
+  const { content } = await $api<{ content: string }>('/api/health/heart/example')
+  return parseCsv(content)
+}
+
 const {
   records, transaction, submitted, uploadError, fileName, fileInput,
-  triggerUpload, onFileChange
-} = useHealthUpload<Entry>({ service: 'heart', parseFile: parseHeartFile })
+  triggerUpload, onFileChange, loadExample
+} = useHealthUpload<Entry>({ service: 'heart', parseFile: parseHeartFile, fetchExample: fetchHeartExample })
 
 const selectedAction = ref('')
 const resultOutput = ref('')
@@ -81,6 +89,7 @@ function downloadTemplate() {
         @change="onFileChange"
       >
       <button type="button" @click="triggerUpload">{{ fileName || 'Load File' }}</button>
+      <button type="button" @click="loadExample">Load Example Data</button>
       Load blood pressure data into the browser to see various statistics and graphics.
       <p v-if="uploadError" class="error" role="alert">{{ uploadError }}</p>
       <p v-if="submitted && transaction" class="success">

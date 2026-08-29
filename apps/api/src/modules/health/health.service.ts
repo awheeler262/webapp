@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '../../config/config.service';
 import { HealthRequestDto, HealthResponseDto } from '@my-app/validation';
+import { HeartExample } from './heart-example';
 
 @Injectable()
 export class HealthService {
@@ -8,7 +9,7 @@ export class HealthService {
 
   constructor(private config: ConfigService) {}
 
-  process(dto: HealthRequestDto): HealthResponseDto {
+  async process(dto: HealthRequestDto): Promise<HealthResponseDto> {
     return {
       service: dto.service,
       timestamp: dto.timestamp,
@@ -17,4 +18,10 @@ export class HealthService {
       status: 'submitted',
     };
   }
+
+  async getHeartExample(): Promise<string> {
+    const heart = new HeartExample();
+    return heart.create();
+  }
+
 }

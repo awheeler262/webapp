@@ -1,6 +1,10 @@
 import type { HealthRequestDto, HealthResponseDto, HealthService } from '@my-app/validation'
 
-export function useHealthUpload<T>(options: { service: HealthService; parseFile: (file: File) => Promise<T[]> }) {
+export function useHealthUpload<T>(options: {
+  service: HealthService
+  parseFile: (file: File) => Promise<T[]>
+  fetchExample?: () => Promise<T[]>
+}) {
   const records = ref<T[]>([])
   const transaction = ref<HealthRequestDto | null>(null)
   const submitted = ref(false)
@@ -17,13 +21,12 @@ export function useHealthUpload<T>(options: { service: HealthService; parseFile:
     fileInput.value?.click()
   }
 
-  async function onFileChange(event: Event) {
-    const input = event.target as HTMLInputElement
-    const file = input.files?.[0]
-    input.value = ''
-    if (!file) return
-
-    fileName.value = file.name
+  // Shared by onFileChange and loadExample -- everything past "get an
+  // Entry[] from somewhere" (state reset, hashing, POSTing the transaction)
+  // is identical regardless of whether the source was a local file or the
+  // backend's example endpoint.
+  async function load(label: string, produce: () => Promise<T[]>) {
+    fileName.value = label
     uploadError.value = ''
     submitted.value = false
     records.value = []
@@ -31,9 +34,9 @@ export function useHealthUpload<T>(options: { service: HealthService; parseFile:
 
     let parsed: T[]
     try {
-      parsed = await options.parseFile(file)
+      parsed = await produce()
     } catch (err) {
-      uploadError.value = err instanceof Error ? err.message : 'Failed to parse file'
+      uploadError.value = err instanceof Error ? err.message : 'Failed to load data'
       return
     }
 
@@ -61,5 +64,18 @@ export function useHealthUpload<T>(options: { service: HealthService; parseFile:
     }
   }
 
-  return { records, transaction, submitted, uploadError, fileName, fileInput, triggerUpload, onFileChange }
+  async function onFileChange(event: Event) {
+    const input = event.target as HTMLInputElement
+    const file = input.files?.[0]
+    input.value = ''
+    if (!file) return
+
+    await load(file.name, () => options.parseFile(file))
+  }
+
+  const loadExample = options.fetchExample
+    ? () => load('Example Data', options.fetchExample!)
+    : undefined
+
+  return { records, transaction, submitted, uploadError, fileName, fileInput, triggerUpload, onFileChange, loadExample }
 }

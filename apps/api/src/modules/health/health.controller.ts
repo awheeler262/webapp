@@ -1,4 +1,4 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, Get } from '@nestjs/common';
 import { HealthService } from './health.service';
 import { HealthRequestDto } from '@my-app/validation';
 
@@ -8,7 +8,15 @@ export class HealthController {
 
   @Post()
   // TODO: Add @UseGuards(JwtAuthGuard) when this endpoint adds functionality
-  process(@Body() dto: HealthRequestDto) {
-    return this.service.process(dto);
+  async process(@Body() dto: HealthRequestDto) {
+    return await this.service.process(dto);
   }
+
+  @Get('heart/example')
+  async getExampleHeart() {
+    return {
+      content: await this.service.getHeartExample()
+    };
+  }
+
 }
