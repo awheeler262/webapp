@@ -9,7 +9,7 @@ export class HealthService {
 
   constructor(private config: ConfigService) {}
 
-  async process(dto: HealthRequestDto): Promise<HealthResponseDto> {
+  process(dto: HealthRequestDto): HealthResponseDto {
     return {
       service: dto.service,
       timestamp: dto.timestamp,
@@ -19,9 +19,8 @@ export class HealthService {
     };
   }
 
-  async getHeartExample(): Promise<string> {
+  getHeartExample(): string {
     const heart = new HeartExample();
     return heart.create();
   }
-
 }

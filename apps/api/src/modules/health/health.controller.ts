@@ -8,15 +8,14 @@ export class HealthController {
 
   @Post()
   // TODO: Add @UseGuards(JwtAuthGuard) when this endpoint adds functionality
-  async process(@Body() dto: HealthRequestDto) {
-    return await this.service.process(dto);
+  process(@Body() dto: HealthRequestDto) {
+    return this.service.process(dto);
   }
 
   @Get('heart/example')
-  async getExampleHeart() {
+  getExampleHeart() {
     return {
-      content: await this.service.getHeartExample()
+      content: this.service.getHeartExample(),
     };
   }
-
 }
