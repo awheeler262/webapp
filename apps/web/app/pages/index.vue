@@ -1,14 +1,8 @@
-<script setup lang="ts">
-const { isLoggedIn } = useAuth()
-</script>
-
 <template>
   <main class="landing">
     <section class="hero">
       <h1>Welcome | Bienvenido | مَرْحَبًا</h1>
       <p>Experimental Web Application</p>
-      <!-- <NuxtLink v-if="isLoggedIn" to="/fair" class="cta">Go to FAIR</NuxtLink> -->
-      <!-- <p v-else class="hint">Log in to get started.</p> -->
     </section>
   </main>
 </template>

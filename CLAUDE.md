@@ -45,7 +45,6 @@ Note: `apps/api`'s jest config sets `rootDir: "src"`, so `--testPathPatterns`/`-
 - SSG only: `nuxt generate` prerenders and outputs to `.output/public`. Nitro's server build exists solely to drive the prerender step — there's no running Nuxt server in production.
 - Auth is entirely client-side: `useAuth()` (`app/composables/useAuth.ts`) stores the API's JWT in a cookie (`auth_token`) and decodes its payload client-side purely for display (no signature verification happens in the browser — the API is the source of truth). There's no `/login` route; login is a dropdown form in `AppNavbar.vue`.
 - `useApi()` / `app/plugins/api.ts` wrap `$fetch`, attaching the bearer token and using `runtimeConfig.public.apiBaseUrl` (from `NUXT_PUBLIC_API_BASE_URL`).
-- `/fair` is a real feature, not dead code — see root `README.md`: it's currently switched off because the backend analysis step calls the Claude API per-request and that costs tokens.
 - `nuxt.config.ts`'s `$production` block strips `console.log`/`console.error` calls from production builds via esbuild's `pure` option — this happens at build time, not in source.
 
 ### apps/api (NestJS)
