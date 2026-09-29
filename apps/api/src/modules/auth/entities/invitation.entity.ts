@@ -20,7 +20,10 @@ export class Invitation {
   @Column({ name: 'expires_at' })
   expiresAt: Date;
 
-  @Column({ name: 'accepted_at', nullable: true })
+  // Explicit type is required here -- reflect-metadata's design:type for a
+  // union (Date | null) resolves to the bare Object constructor, which TypeORM
+  // can't map to a Postgres column type on its own.
+  @Column({ name: 'accepted_at', type: 'timestamptz', nullable: true })
   acceptedAt: Date | null;
 
   @Column({ name: 'invited_by' })
