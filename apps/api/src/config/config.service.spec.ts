@@ -11,7 +11,6 @@ describe('ConfigService', () => {
   const originalNodeEnv = process.env.NODE_ENV;
   const originalJwtSecret = process.env.JWT_SECRET;
   const originalDatabaseUrl = process.env.DATABASE_URL;
-  const originalDevLoginBypass = process.env.ALLOW_DEV_LOGIN_BYPASS;
 
   beforeEach(() => {
     service = new ConfigService();
@@ -22,7 +21,6 @@ describe('ConfigService', () => {
     process.env.NODE_ENV = originalNodeEnv;
     process.env.JWT_SECRET = originalJwtSecret;
     process.env.DATABASE_URL = originalDatabaseUrl;
-    process.env.ALLOW_DEV_LOGIN_BYPASS = originalDevLoginBypass;
   });
 
   describe('isProduction', () => {
@@ -34,26 +32,6 @@ describe('ConfigService', () => {
     it('is false otherwise', () => {
       process.env.NODE_ENV = 'test';
       expect(service.isProduction()).toBe(false);
-    });
-  });
-
-  describe('isDevLoginBypassEnabled', () => {
-    it('is true when the flag is set and NODE_ENV is not production', () => {
-      process.env.ALLOW_DEV_LOGIN_BYPASS = 'true';
-      process.env.NODE_ENV = 'test';
-      expect(service.isDevLoginBypassEnabled()).toBe(true);
-    });
-
-    it('is false when the flag is not set, regardless of NODE_ENV', () => {
-      delete process.env.ALLOW_DEV_LOGIN_BYPASS;
-      process.env.NODE_ENV = 'test';
-      expect(service.isDevLoginBypassEnabled()).toBe(false);
-    });
-
-    it('is false when the flag is set but NODE_ENV is production (defense in depth)', () => {
-      process.env.ALLOW_DEV_LOGIN_BYPASS = 'true';
-      process.env.NODE_ENV = 'production';
-      expect(service.isDevLoginBypassEnabled()).toBe(false);
     });
   });
 

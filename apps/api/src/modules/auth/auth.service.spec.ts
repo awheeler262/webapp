@@ -34,7 +34,6 @@ describe('AuthService', () => {
           provide: ConfigService,
           useValue: {
             isProduction: jest.fn().mockReturnValue(false),
-            isDevLoginBypassEnabled: jest.fn().mockReturnValue(false),
             isRegistrationAllowed: jest.fn().mockReturnValue(true),
           },
         },
@@ -107,74 +106,47 @@ describe('AuthService', () => {
   });
 
   describe('login', () => {
-    it('when the dev login bypass is enabled, returns a token for the fixed dev user id regardless of credentials', async () => {
-      configService.isDevLoginBypassEnabled.mockReturnValue(true);
-      jwtService.sign.mockReturnValue('dev-token');
-      jwtService.decode.mockReturnValue({ exp: 1234567890 });
+    it('throws UnauthorizedException if no user matches the email', async () => {
+      usersService.findByEmail.mockResolvedValue(null);
 
-      const result = await service.login(
-        'anyone@example.com',
-        'whatever-password',
+      await expect(service.login('a@b.com', 'pw')).rejects.toThrow(
+        UnauthorizedException,
       );
-
-      expect(usersService.findByEmail).not.toHaveBeenCalled();
-      expect(jwtService.sign).toHaveBeenCalledWith({
-        sub: '8fb2a405-503e-4344-8543-6e8d93f4c9ee',
-        email: 'anyone@example.com',
-      });
-      expect(result).toEqual({
-        accessToken: 'dev-token',
-        user: {
-          id: '8fb2a405-503e-4344-8543-6e8d93f4c9ee',
-          email: 'anyone@example.com',
-        },
-        exp: 1234567890,
-      });
     });
 
-    describe('when the dev login bypass is disabled', () => {
-      it('throws UnauthorizedException if no user matches the email', async () => {
-        usersService.findByEmail.mockResolvedValue(null);
+    it('throws UnauthorizedException if the password does not match', async () => {
+      usersService.findByEmail.mockResolvedValue({
+        id: '1',
+        email: 'a@b.com',
+        password: 'hashed',
+      } as any);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
-        await expect(service.login('a@b.com', 'pw')).rejects.toThrow(
-          UnauthorizedException,
-        );
+      await expect(service.login('a@b.com', 'wrong-pw')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('returns a signed token when credentials are valid', async () => {
+      usersService.findByEmail.mockResolvedValue({
+        id: '1',
+        email: 'a@b.com',
+        password: 'hashed',
+      } as any);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      jwtService.sign.mockReturnValue('real-token');
+      jwtService.decode.mockReturnValue({ exp: 1234567890 });
+
+      const result = await service.login('a@b.com', 'correct-pw');
+
+      expect(jwtService.sign).toHaveBeenCalledWith({
+        sub: '1',
+        email: 'a@b.com',
       });
-
-      it('throws UnauthorizedException if the password does not match', async () => {
-        usersService.findByEmail.mockResolvedValue({
-          id: '1',
-          email: 'a@b.com',
-          password: 'hashed',
-        } as any);
-        (bcrypt.compare as jest.Mock).mockResolvedValue(false);
-
-        await expect(service.login('a@b.com', 'wrong-pw')).rejects.toThrow(
-          UnauthorizedException,
-        );
-      });
-
-      it('returns a signed token when credentials are valid', async () => {
-        usersService.findByEmail.mockResolvedValue({
-          id: '1',
-          email: 'a@b.com',
-          password: 'hashed',
-        } as any);
-        (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-        jwtService.sign.mockReturnValue('real-token');
-        jwtService.decode.mockReturnValue({ exp: 1234567890 });
-
-        const result = await service.login('a@b.com', 'correct-pw');
-
-        expect(jwtService.sign).toHaveBeenCalledWith({
-          sub: '1',
-          email: 'a@b.com',
-        });
-        expect(result).toEqual({
-          accessToken: 'real-token',
-          user: { id: '1', email: 'a@b.com' },
-          exp: 1234567890,
-        });
+      expect(result).toEqual({
+        accessToken: 'real-token',
+        user: { id: '1', email: 'a@b.com' },
+        exp: 1234567890,
       });
     });
   });
