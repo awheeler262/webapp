@@ -1,12 +1,17 @@
 import { ServiceUnavailableException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { User } from '../modules/users/entities/user.entity';
+import { Cognito } from '../modules/auth/entities/cognito.entity';
+import { Invitation } from '../modules/auth/entities/invitation.entity';
+import { Tenant } from '../modules/auth/entities/tenant.entity';
+import { Role } from '../modules/auth/entities/role.entity';
+import { TenantUser } from '../modules/auth/entities/tenant-user.entity';
 import { ConfigService } from '../config/config.service';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
   url: process.env.DATABASE_URL,
-  entities: [User],
+  entities: [User, Cognito, Invitation, Tenant, Role, TenantUser],
   synchronize: false,
   // Without this, pg's default TCP connect can hang far longer than expected
   // against an unreachable host -- fail fast instead so a lazy connect attempt

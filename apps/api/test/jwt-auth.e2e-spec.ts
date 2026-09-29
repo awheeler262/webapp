@@ -7,7 +7,7 @@ import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
 import { configureCookies } from './../src/app.config';
 import { JwtAuthGuard } from './../src/modules/auth/jwt-auth.guard';
-import { UsersService } from './../src/modules/users/users.service';
+import { CognitoService } from './../src/modules/auth/cognito.service';
 import { DATA_SOURCE } from './../src/database/database.module';
 import { cleanupTestUser } from './utils/cleanup-test-user';
 
@@ -24,7 +24,6 @@ class TestProtectedController {
 describe('JwtAuthGuard (e2e)', () => {
   let app: INestApplication<App>;
   let jwtService: JwtService;
-  let usersService: UsersService;
   let dataSource: DataSource;
   let realUserId: string;
   const email = `jwt-e2e-${Date.now()}@example.com`;
@@ -40,13 +39,12 @@ describe('JwtAuthGuard (e2e)', () => {
     await app.init();
 
     jwtService = app.get(JwtService);
-    usersService = app.get(UsersService);
     dataSource = app.get(DATA_SOURCE);
 
-    const user = await usersService.create({
+    const user = await app.get(CognitoService).createIdentity({
       email,
       name: 'JWT E2E',
-      password: 'plaintext-password-123',
+      passwordPlain: 'plaintext-password-123',
     });
     realUserId = user.id;
   });

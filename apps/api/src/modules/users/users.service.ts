@@ -5,8 +5,6 @@ import {
 } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
-import { CreateUserDto } from '@my-app/validation';
-import * as bcrypt from 'bcrypt';
 import {
   ensureInitialized,
   isConnectivityError,
@@ -42,23 +40,12 @@ export class UsersService {
     }
   }
 
-  async create(dto: CreateUserDto) {
-    const hashed = await bcrypt.hash(dto.password, 10);
-    const saved = await this.withRepo((repo) =>
-      repo.save(
-        repo.create({
-          email: dto.email,
-          name: dto.name,
-          password: hashed,
-        }),
-      ),
-    );
-    const { id, email, name, createdAt } = saved;
-    return { id, email, name, createdAt };
-  }
-
   async findByEmail(email: string) {
     return this.withRepo((repo) => repo.findOne({ where: { email } }));
+  }
+
+  async findByCognitoSub(cognitoSub: string) {
+    return this.withRepo((repo) => repo.findOne({ where: { cognitoSub } }));
   }
 
   async findById(id: string) {

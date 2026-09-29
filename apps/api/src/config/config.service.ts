@@ -15,6 +15,10 @@ export class ConfigService {
     return process.env.NODE_ENV === 'production';
   }
 
+  isCognitoEnabled(): boolean {
+    return process.env.USE_COGNITO === 'true';
+  }
+
   // Allowlists known-safe environments rather than denylisting 'production' --
   // an unrecognized/misconfigured NODE_ENV now fails closed (registration blocked)
   // instead of failing open (registration silently allowed).

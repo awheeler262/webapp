@@ -17,8 +17,8 @@ export class User {
   @Column()
   name: string;
 
-  @Column()
-  password: string;
+  @Column({ name: 'cognito_sub', unique: true })
+  cognitoSub: string;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

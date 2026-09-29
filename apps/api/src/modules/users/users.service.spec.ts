@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ServiceUnavailableException } from '@nestjs/common';
 import { Repository } from 'typeorm';
-import * as bcrypt from 'bcrypt';
 import { UsersService } from './users.service';
 import { User } from './entities/user.entity';
 import { DATA_SOURCE } from '../../database/database.module';
@@ -37,66 +36,12 @@ describe('UsersService', () => {
     jest.clearAllMocks();
   });
 
-  describe('create', () => {
-    const dto = {
-      email: 'alice@example.com',
-      name: 'Alice',
-      password: 'plaintext-pw',
-    };
-
-    it('hashes the password before persisting it', async () => {
-      const saved = {
-        id: 'uuid-1',
-        email: dto.email,
-        name: dto.name,
-        password: 'irrelevant-return-value',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      repository.create.mockReturnValue(saved);
-      repository.save.mockResolvedValue(saved);
-
-      await service.create(dto);
-
-      const createArg = repository.create.mock.calls[0][0] as Partial<User>;
-      expect(createArg.password).not.toBe(dto.password);
-      expect(await bcrypt.compare(dto.password, createArg.password!)).toBe(
-        true,
-      );
-      expect(repository.save).toHaveBeenCalledWith(saved);
-    });
-
-    it('never returns the password hash or updatedAt', async () => {
-      const saved = {
-        id: 'uuid-1',
-        email: dto.email,
-        name: dto.name,
-        password: 'hashed-value',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      repository.create.mockReturnValue(saved);
-      repository.save.mockResolvedValue(saved);
-
-      const result = await service.create(dto);
-
-      expect(result).toEqual({
-        id: saved.id,
-        email: saved.email,
-        name: saved.name,
-        createdAt: saved.createdAt,
-      });
-      expect(result).not.toHaveProperty('password');
-      expect(result).not.toHaveProperty('updatedAt');
-    });
-  });
-
   describe('findByEmail', () => {
-    it('queries by email and returns the full entity, including the password hash', async () => {
+    it('queries by email and returns the full entity', async () => {
       const user = {
         id: '1',
         email: 'alice@example.com',
-        password: 'hashed',
+        cognitoSub: 'sub-1',
       } as User;
       repository.findOne.mockResolvedValue(user);
 
@@ -117,8 +62,34 @@ describe('UsersService', () => {
     });
   });
 
+  describe('findByCognitoSub', () => {
+    it('queries by cognitoSub and returns the full entity', async () => {
+      const user = {
+        id: '1',
+        email: 'alice@example.com',
+        cognitoSub: 'sub-1',
+      } as User;
+      repository.findOne.mockResolvedValue(user);
+
+      const result = await service.findByCognitoSub('sub-1');
+
+      expect(repository.findOne).toHaveBeenCalledWith({
+        where: { cognitoSub: 'sub-1' },
+      });
+      expect(result).toBe(user);
+    });
+
+    it('returns null when no user matches', async () => {
+      repository.findOne.mockResolvedValue(null);
+
+      const result = await service.findByCognitoSub('nonexistent-sub');
+
+      expect(result).toBeNull();
+    });
+  });
+
   describe('findById', () => {
-    it('queries by id with a narrowed select that excludes the password', async () => {
+    it('queries by id with a narrowed select that excludes cognitoSub', async () => {
       const user = {
         id: '1',
         email: 'alice@example.com',
@@ -148,31 +119,13 @@ describe('UsersService', () => {
       );
     });
 
-    it('reports create as a clean 503 instead of the raw connectivity error', async () => {
-      const dto = {
-        email: 'alice@example.com',
-        name: 'Alice',
-        password: 'plaintext-pw',
-      };
-      repository.create.mockReturnValue({} as User);
-      repository.save.mockRejectedValue({ driverError: { code: '08006' } });
-
-      await expect(service.create(dto as any)).rejects.toThrow(
-        ServiceUnavailableException,
-      );
-    });
-
     it('does not reclassify a genuine application-level error (e.g. a unique-constraint race)', async () => {
-      const dto = {
-        email: 'alice@example.com',
-        name: 'Alice',
-        password: 'plaintext-pw',
-      };
       const conflictError = { code: '23505', message: 'duplicate key value' };
-      repository.create.mockReturnValue({} as User);
-      repository.save.mockRejectedValue(conflictError);
+      repository.findOne.mockRejectedValue(conflictError);
 
-      await expect(service.create(dto as any)).rejects.toBe(conflictError);
+      await expect(service.findByEmail('alice@example.com')).rejects.toBe(
+        conflictError,
+      );
     });
   });
 });

@@ -7,7 +7,7 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
 import { configureCookies } from './../src/app.config';
-import { UsersService } from './../src/modules/users/users.service';
+import { CognitoService } from './../src/modules/auth/cognito.service';
 import { DATA_SOURCE } from './../src/database/database.module';
 import { LAMBDA_CLIENT } from './../src/modules/boost/boost.constants';
 import { cleanupTestUser } from './utils/cleanup-test-user';
@@ -28,7 +28,6 @@ const LAMBDA_COLD_START_TIMEOUT_MS = 20_000;
 describe('POST /boost/query -> AppModule -> sam local start-lambda (e2e)', () => {
   let app: INestApplication<App>;
   let jwtService: JwtService;
-  let usersService: UsersService;
   let dataSource: DataSource;
   let realUserId: string;
   const email = `boost-http-e2e-${Date.now()}@example.com`;
@@ -57,13 +56,12 @@ describe('POST /boost/query -> AppModule -> sam local start-lambda (e2e)', () =>
     await app.init();
 
     jwtService = app.get(JwtService);
-    usersService = app.get(UsersService);
     dataSource = app.get(DATA_SOURCE);
 
-    const user = await usersService.create({
+    const user = await app.get(CognitoService).createIdentity({
       email,
       name: 'Boost HTTP E2E',
-      password: 'plaintext-password-123',
+      passwordPlain: 'plaintext-password-123',
     });
     realUserId = user.id;
   });

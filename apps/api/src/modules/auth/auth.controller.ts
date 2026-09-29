@@ -53,9 +53,9 @@ export class AuthController {
     @Body() dto: CreateUserDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { accessToken, user, exp } = await this.auth.register(dto);
+    const { accessToken, user, exp, tenants } = await this.auth.register(dto);
     setAuthCookie(res, accessToken, exp);
-    return { user, expiresAt: exp * 1000 };
+    return { user, expiresAt: exp * 1000, tenants };
   }
 
   @Post('login')
@@ -64,12 +64,12 @@ export class AuthController {
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { accessToken, user, exp } = await this.auth.login(
+    const { accessToken, user, exp, tenants } = await this.auth.login(
       dto.email,
       dto.password,
     );
     setAuthCookie(res, accessToken, exp);
-    return { user, expiresAt: exp * 1000 };
+    return { user, expiresAt: exp * 1000, tenants };
   }
 
   @Post('logout')

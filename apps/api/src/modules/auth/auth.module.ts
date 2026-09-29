@@ -3,15 +3,18 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { CognitoService } from './cognito.service';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { UsersModule } from '../users/users.module';
+import { DatabaseModule } from '../../database/database.module';
 import { ConfigModule } from '../../config/config.module';
 import { ConfigService } from '../../config/config.service';
 
 @Module({
   imports: [
     UsersModule,
+    DatabaseModule,
     PassportModule,
     ConfigModule,
     JwtModule.registerAsync({
@@ -30,7 +33,7 @@ import { ConfigService } from '../../config/config.service';
       }),
     }),
   ],
-  providers: [AuthService, JwtStrategy, JwtAuthGuard],
+  providers: [AuthService, CognitoService, JwtStrategy, JwtAuthGuard],
   controllers: [AuthController],
   exports: [JwtAuthGuard],
 })

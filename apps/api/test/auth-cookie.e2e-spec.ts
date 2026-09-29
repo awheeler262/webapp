@@ -5,25 +5,17 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
 import { configureCookies } from './../src/app.config';
-import { UsersService } from './../src/modules/users/users.service';
+import { CognitoService } from './../src/modules/auth/cognito.service';
 import { DATA_SOURCE } from './../src/database/database.module';
 import { cleanupTestUser } from './utils/cleanup-test-user';
 
 describe('Auth cookie flow (e2e)', () => {
   let app: INestApplication<App>;
-  let usersService: UsersService;
   let dataSource: DataSource;
   const email = `auth-cookie-e2e-${Date.now()}@example.com`;
   const password = 'plaintext-password-123';
-  const originalNodeEnv = process.env.NODE_ENV;
 
   beforeAll(async () => {
-    // AuthService.login() short-circuits to a fixed dev-user id whenever
-    // NODE_ENV === 'test' (which Jest sets by default) -- override it so this
-    // suite exercises the real bcrypt-checked login path against the actual
-    // user created below, which is what these cookie/me/logout checks need.
-    process.env.NODE_ENV = 'e2e';
-
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -32,18 +24,16 @@ describe('Auth cookie flow (e2e)', () => {
     configureCookies(app);
     await app.init();
 
-    usersService = app.get(UsersService);
     dataSource = app.get(DATA_SOURCE);
-    await usersService.create({
+    await app.get(CognitoService).createIdentity({
       email,
       name: 'Auth Cookie E2E',
-      password,
+      passwordPlain: password,
     });
   });
 
   afterAll(async () => {
     await cleanupTestUser(dataSource, email, app);
-    process.env.NODE_ENV = originalNodeEnv;
   });
 
   it('login sets an httpOnly, secure, sameSite=lax auth_token cookie and returns no token in the body', async () => {
@@ -55,6 +45,7 @@ describe('Auth cookie flow (e2e)', () => {
     expect(res.body).toEqual({
       user: { id: expect.any(String), email },
       expiresAt: expect.any(Number),
+      tenants: [],
     });
     expect(res.body).not.toHaveProperty('accessToken');
 
