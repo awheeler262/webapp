@@ -102,7 +102,13 @@ describe('UsersService', () => {
 
       expect(repository.findOne).toHaveBeenCalledWith({
         where: { id: '1' },
-        select: { id: true, email: true, name: true, createdAt: true },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          isDevops: true,
+          createdAt: true,
+        },
       });
       expect(result).toBe(user);
     });

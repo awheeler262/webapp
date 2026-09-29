@@ -8,7 +8,10 @@ import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 import { Cognito } from './entities/cognito.entity';
 import { Invitation } from './entities/invitation.entity';
+import { Tenant } from './entities/tenant.entity';
+import { Role } from './entities/role.entity';
 import { TenantUser } from './entities/tenant-user.entity';
+import { DevopsAccessLog } from './entities/devops-access-log.entity';
 import { User } from '../users/entities/user.entity';
 import {
   ensureInitialized,
@@ -80,6 +83,57 @@ export class CognitoService {
     return rows.map((row) => row.tenantId);
   }
 
+  // The regular-user source of truth for TenantContextGuard -- returns the
+  // role_id already on file for this (user, tenant) pair, or null if the user
+  // isn't a member of that tenant at all.
+  async findTenantUserRole(
+    userId: string,
+    tenantId: string,
+  ): Promise<string | null> {
+    const row = await this.withRepo(
+      (ds) => ds.getRepository(TenantUser),
+      (repo) => repo.findOne({ where: { userId, tenantId } }),
+    );
+    return row?.roleId ?? null;
+  }
+
+  // The devops-user check for TenantContextGuard -- true only if roleId belongs
+  // to tenantId, so a devops user can't reference a role from a different tenant.
+  async roleExists(tenantId: string, roleId: string): Promise<boolean> {
+    const row = await this.withRepo(
+      (ds) => ds.getRepository(Role),
+      (repo) => repo.findOne({ where: { id: roleId, tenantId } }),
+    );
+    return row !== null;
+  }
+
+  async listTenants(): Promise<Tenant[]> {
+    return this.withRepo(
+      (ds) => ds.getRepository(Tenant),
+      (repo) => repo.find(),
+    );
+  }
+
+  async listRolesForTenant(tenantId: string): Promise<Role[]> {
+    return this.withRepo(
+      (ds) => ds.getRepository(Role),
+      (repo) => repo.find({ where: { tenantId } }),
+    );
+  }
+
+  async logDevopsAccess(entry: {
+    userId: string;
+    tenantId: string;
+    roleId: string;
+    method: string;
+    path: string;
+  }): Promise<void> {
+    await this.withRepo(
+      (ds) => ds.getRepository(DevopsAccessLog),
+      (repo) => repo.save(repo.create(entry)),
+    );
+  }
+
   // Provisions a cognito identity + user profile in a single transaction --
   // when created from an invitation, also grants tenant membership and marks
   // the invitation accepted, atomically. A partial failure here must not leave
@@ -104,13 +158,18 @@ export class CognitoService {
               .create({ email, password: hashed, sub }),
           );
 
-        const user = await manager
-          .getRepository(User)
-          .save(
-            manager
-              .getRepository(User)
-              .create({ email, name, cognitoSub: sub }),
-          );
+        // isDevops set explicitly rather than left to the column default --
+        // TypeORM doesn't reflect a plain @Column default back onto the
+        // in-memory entity after save(), and this codepath must never
+        // silently grant it regardless.
+        const user = await manager.getRepository(User).save(
+          manager.getRepository(User).create({
+            email,
+            name,
+            cognitoSub: sub,
+            isDevops: false,
+          }),
+        );
 
         if (invitation) {
           await manager.getRepository(TenantUser).save(

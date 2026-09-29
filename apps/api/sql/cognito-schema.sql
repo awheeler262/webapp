@@ -21,6 +21,7 @@ CREATE TABLE users (
     email varchar UNIQUE NOT NULL,
     name varchar NOT NULL,
     cognito_sub uuid UNIQUE NOT NULL,
+    is_devops boolean NOT NULL DEFAULT false,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -48,4 +49,16 @@ CREATE TABLE invitations (
     expires_at timestamptz NOT NULL,
     accepted_at timestamptz,
     invited_by uuid NOT NULL REFERENCES users (id)
+);
+
+-- Written only when a request is authorized via the is_devops path (cross-tenant
+-- support access) -- not for a regular user acting in their own tenant.
+CREATE TABLE devops_access_log (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid NOT NULL REFERENCES users (id),
+    tenant_id uuid NOT NULL REFERENCES tenant (id),
+    role_id uuid NOT NULL REFERENCES roles (id),
+    method varchar NOT NULL,
+    path varchar NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
 );

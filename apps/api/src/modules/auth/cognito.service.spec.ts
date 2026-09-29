@@ -4,7 +4,10 @@ import { Repository } from 'typeorm';
 import { CognitoService } from './cognito.service';
 import { Cognito } from './entities/cognito.entity';
 import { Invitation } from './entities/invitation.entity';
+import { Tenant } from './entities/tenant.entity';
+import { Role } from './entities/role.entity';
 import { TenantUser } from './entities/tenant-user.entity';
+import { DevopsAccessLog } from './entities/devops-access-log.entity';
 import { User } from '../users/entities/user.entity';
 import { DATA_SOURCE } from '../../database/database.module';
 
@@ -12,7 +15,10 @@ describe('CognitoService', () => {
   let service: CognitoService;
   let cognitoRepo: jest.Mocked<Repository<Cognito>>;
   let invitationRepo: jest.Mocked<Repository<Invitation>>;
+  let tenantRepo: jest.Mocked<Repository<Tenant>>;
+  let roleRepo: jest.Mocked<Repository<Role>>;
   let tenantUserRepo: jest.Mocked<Repository<TenantUser>>;
+  let devopsAccessLogRepo: jest.Mocked<Repository<DevopsAccessLog>>;
   let userRepo: jest.Mocked<Repository<User>>;
   let queryBuilder: {
     where: jest.Mock;
@@ -40,11 +46,23 @@ describe('CognitoService', () => {
       createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
       update: jest.fn(),
     } as unknown as jest.Mocked<Repository<Invitation>>;
+    tenantRepo = {
+      find: jest.fn(),
+    } as unknown as jest.Mocked<Repository<Tenant>>;
+    roleRepo = {
+      find: jest.fn(),
+      findOne: jest.fn(),
+    } as unknown as jest.Mocked<Repository<Role>>;
     tenantUserRepo = {
       find: jest.fn(),
+      findOne: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
     } as unknown as jest.Mocked<Repository<TenantUser>>;
+    devopsAccessLogRepo = {
+      create: jest.fn(),
+      save: jest.fn(),
+    } as unknown as jest.Mocked<Repository<DevopsAccessLog>>;
     userRepo = {
       create: jest.fn(),
       save: jest.fn(),
@@ -53,7 +71,10 @@ describe('CognitoService', () => {
     const reposByEntity = new Map<unknown, unknown>([
       [Cognito, cognitoRepo],
       [Invitation, invitationRepo],
+      [Tenant, tenantRepo],
+      [Role, roleRepo],
       [TenantUser, tenantUserRepo],
+      [DevopsAccessLog, devopsAccessLogRepo],
       [User, userRepo],
     ]);
 
@@ -131,6 +152,96 @@ describe('CognitoService', () => {
     });
   });
 
+  describe('findTenantUserRole', () => {
+    it('returns the role_id on file for the (user, tenant) pair', async () => {
+      tenantUserRepo.findOne.mockResolvedValue({
+        roleId: 'role-1',
+      } as TenantUser);
+
+      const result = await service.findTenantUserRole('user-1', 'tenant-1');
+
+      expect(tenantUserRepo.findOne).toHaveBeenCalledWith({
+        where: { userId: 'user-1', tenantId: 'tenant-1' },
+      });
+      expect(result).toBe('role-1');
+    });
+
+    it('returns null when the user is not a member of that tenant', async () => {
+      tenantUserRepo.findOne.mockResolvedValue(null);
+
+      const result = await service.findTenantUserRole('user-1', 'tenant-1');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('roleExists', () => {
+    it('is true when the role belongs to that tenant', async () => {
+      roleRepo.findOne.mockResolvedValue({ id: 'role-1' } as Role);
+
+      const result = await service.roleExists('tenant-1', 'role-1');
+
+      expect(roleRepo.findOne).toHaveBeenCalledWith({
+        where: { id: 'role-1', tenantId: 'tenant-1' },
+      });
+      expect(result).toBe(true);
+    });
+
+    it('is false when no role matches that id + tenant pair', async () => {
+      roleRepo.findOne.mockResolvedValue(null);
+
+      const result = await service.roleExists('tenant-1', 'wrong-role');
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('listTenants', () => {
+    it('returns all tenants', async () => {
+      const tenants = [{ id: 't1' }, { id: 't2' }] as Tenant[];
+      tenantRepo.find.mockResolvedValue(tenants);
+
+      const result = await service.listTenants();
+
+      expect(result).toBe(tenants);
+    });
+  });
+
+  describe('listRolesForTenant', () => {
+    it('returns roles scoped to the given tenant', async () => {
+      const roles = [{ id: 'role-1', tenantId: 'tenant-1' }] as Role[];
+      roleRepo.find.mockResolvedValue(roles);
+
+      const result = await service.listRolesForTenant('tenant-1');
+
+      expect(roleRepo.find).toHaveBeenCalledWith({
+        where: { tenantId: 'tenant-1' },
+      });
+      expect(result).toBe(roles);
+    });
+  });
+
+  describe('logDevopsAccess', () => {
+    it('inserts a devops_access_log row', async () => {
+      const entry = {
+        userId: 'user-1',
+        tenantId: 'tenant-1',
+        roleId: 'role-1',
+        method: 'GET',
+        path: '/api/tenants',
+      };
+      devopsAccessLogRepo.create.mockImplementation(
+        (v) => v as DevopsAccessLog,
+      );
+      devopsAccessLogRepo.save.mockResolvedValue({} as DevopsAccessLog);
+
+      await service.logDevopsAccess(entry);
+
+      expect(devopsAccessLogRepo.create).toHaveBeenCalledWith(entry);
+      expect(devopsAccessLogRepo.save).toHaveBeenCalledWith(entry);
+    });
+  });
+
   describe('createIdentity', () => {
     it('creates a cognito row and a user row, hashing the password, with no tenant/invitation side effects when no invitation is given', async () => {
       cognitoRepo.create.mockImplementation((v) => v as Cognito);
@@ -155,6 +266,7 @@ describe('CognitoService', () => {
         email: 'a@b.com',
         name: 'Alice',
         cognitoSub: cognitoCreateArg.sub,
+        isDevops: false,
       });
 
       expect(tenantUserRepo.save).not.toHaveBeenCalled();

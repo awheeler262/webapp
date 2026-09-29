@@ -52,7 +52,13 @@ export class UsersService {
     return this.withRepo((repo) =>
       repo.findOne({
         where: { id },
-        select: { id: true, email: true, name: true, createdAt: true },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          isDevops: true,
+          createdAt: true,
+        },
       }),
     );
   }

@@ -70,13 +70,22 @@ export class AuthService {
 
   private async signWithTenants(user: User) {
     const tenants = await this.cognito.findTenantIdsForUser(user.id);
-    return { ...this.sign(user.id, user.email), tenants };
+    return { ...this.sign(user), tenants };
   }
 
-  private sign(userId: string, email: string) {
-    const payload = { sub: userId, email };
+  // isDevops is included in the response's user object (so the frontend knows
+  // whether to show the tenant/role picker right after login/register) but
+  // deliberately never in the signed payload -- JwtStrategy.validate() always
+  // re-fetches it fresh from the DB, so it's never trusted from a possibly
+  // stale token.
+  private sign(user: User) {
+    const payload = { sub: user.id, email: user.email };
     const accessToken = this.jwt.sign(payload);
     const { exp } = this.jwt.decode<{ exp: number }>(accessToken);
-    return { accessToken, user: { id: userId, email }, exp };
+    return {
+      accessToken,
+      user: { id: user.id, email: user.email, isDevops: user.isDevops },
+      exp,
+    };
   }
 }

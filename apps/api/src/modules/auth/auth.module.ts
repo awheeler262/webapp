@@ -6,6 +6,8 @@ import { AuthController } from './auth.controller';
 import { CognitoService } from './cognito.service';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { DevopsGuard } from './devops.guard';
+import { TenantContextGuard } from './tenant-context.guard';
 import { UsersModule } from '../users/users.module';
 import { DatabaseModule } from '../../database/database.module';
 import { ConfigModule } from '../../config/config.module';
@@ -33,8 +35,15 @@ import { ConfigService } from '../../config/config.service';
       }),
     }),
   ],
-  providers: [AuthService, CognitoService, JwtStrategy, JwtAuthGuard],
+  providers: [
+    AuthService,
+    CognitoService,
+    JwtStrategy,
+    JwtAuthGuard,
+    DevopsGuard,
+    TenantContextGuard,
+  ],
   controllers: [AuthController],
-  exports: [JwtAuthGuard],
+  exports: [CognitoService, JwtAuthGuard, DevopsGuard, TenantContextGuard],
 })
 export class AuthModule {}
