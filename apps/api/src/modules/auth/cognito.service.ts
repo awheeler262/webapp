@@ -61,6 +61,10 @@ export class CognitoService {
     );
   }
 
+  // If the same email has more than one pending invitation (e.g. to two
+  // different tenants) this must pick deterministically rather than whatever
+  // Postgres happens to return first -- soonest-expiring first, since there's
+  // no created_at column on invitations to order by "most recent" instead.
   async findValidInvitation(email: string): Promise<Invitation | null> {
     return this.withRepo(
       (ds) => ds.getRepository(Invitation),
@@ -70,6 +74,7 @@ export class CognitoService {
           .where('invitation.email = :email', { email })
           .andWhere('invitation.accepted_at IS NULL')
           .andWhere('invitation.expires_at > :now', { now: new Date() })
+          .orderBy('invitation.expires_at', 'ASC')
           .getOne(),
     );
   }
@@ -82,18 +87,23 @@ export class CognitoService {
     return rows.map((row) => row.tenantId);
   }
 
-  // The regular-user source of truth for TenantContextGuard -- returns the
-  // role_id already on file for this (user, tenant) pair, or null if the user
-  // isn't a member of that tenant at all.
-  async findTenantUserRole(
+  // The regular-user source of truth for TenantContextGuard -- true only if
+  // this exact (user, tenant, role) tuple is on file. Checking the tuple
+  // directly (rather than fetching *a* row for (user, tenant) and comparing
+  // roleId separately) matters because tenant_users has no unique constraint
+  // on (user_id, tenant_id) -- a user with two rows for the same tenant but
+  // different roles would otherwise get an arbitrary one back from findOne(),
+  // spuriously rejecting a role they actually hold.
+  async hasTenantUserRole(
     userId: string,
     tenantId: string,
-  ): Promise<string | null> {
+    roleId: string,
+  ): Promise<boolean> {
     const row = await this.withRepo(
       (ds) => ds.getRepository(TenantUser),
-      (repo) => repo.findOne({ where: { userId, tenantId } }),
+      (repo) => repo.findOne({ where: { userId, tenantId, roleId } }),
     );
-    return row?.roleId ?? null;
+    return row !== null;
   }
 
   // The devops-user check for TenantContextGuard -- true only if roleId belongs
@@ -131,11 +141,13 @@ export class CognitoService {
     invitation,
   }: CreateIdentityInput): Promise<User> {
     const dataSource = await this.getDataSource();
+    const sub = randomUUID();
+    // Hashed before opening the transaction -- bcrypt's cost factor makes
+    // this tens of ms of pure CPU work with no need for an open connection,
+    // so doing it inside the transaction just holds a pooled connection idle.
+    const hashed = await bcrypt.hash(passwordPlain, 10);
     try {
       return await dataSource.transaction(async (manager: EntityManager) => {
-        const sub = randomUUID();
-        const hashed = await bcrypt.hash(passwordPlain, 10);
-
         await manager
           .getRepository(Cognito)
           .save(

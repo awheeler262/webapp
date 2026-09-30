@@ -29,7 +29,7 @@ describe('TenantContextGuard', () => {
 
   beforeEach(() => {
     cognito = {
-      findTenantUserRole: jest.fn(),
+      hasTenantUserRole: jest.fn(),
       roleExists: jest.fn(),
     } as unknown as jest.Mocked<CognitoService>;
     guard = new TenantContextGuard(cognito);
@@ -48,18 +48,22 @@ describe('TenantContextGuard', () => {
 
   describe('for a regular (non-devops) user', () => {
     it('allows the request when the header role matches tenant_users', async () => {
-      cognito.findTenantUserRole.mockResolvedValue('role-1');
+      cognito.hasTenantUserRole.mockResolvedValue(true);
       const context = contextFor({
         user: { id: 'u1', isDevops: false },
         headers: { 'x-tenant-id': 'tenant-1', 'x-role-id': 'role-1' },
       });
 
       await expect(guard.canActivate(context)).resolves.toBe(true);
-      expect(cognito.findTenantUserRole).toHaveBeenCalledWith('u1', 'tenant-1');
+      expect(cognito.hasTenantUserRole).toHaveBeenCalledWith(
+        'u1',
+        'tenant-1',
+        'role-1',
+      );
     });
 
     it('rejects when the user has no membership in that tenant', async () => {
-      cognito.findTenantUserRole.mockResolvedValue(null);
+      cognito.hasTenantUserRole.mockResolvedValue(false);
       const context = contextFor({
         user: { id: 'u1', isDevops: false },
         headers: { 'x-tenant-id': 'tenant-1', 'x-role-id': 'role-1' },
@@ -71,7 +75,7 @@ describe('TenantContextGuard', () => {
     });
 
     it('rejects when the header role does not match the actual assigned role', async () => {
-      cognito.findTenantUserRole.mockResolvedValue('role-1');
+      cognito.hasTenantUserRole.mockResolvedValue(false);
       const context = contextFor({
         user: { id: 'u1', isDevops: false },
         headers: { 'x-tenant-id': 'tenant-1', 'x-role-id': 'role-2' },
@@ -95,7 +99,7 @@ describe('TenantContextGuard', () => {
 
       await expect(guard.canActivate(context)).resolves.toBe(true);
       expect(cognito.roleExists).toHaveBeenCalledWith('tenant-9', 'role-9');
-      expect(cognito.findTenantUserRole).not.toHaveBeenCalled();
+      expect(cognito.hasTenantUserRole).not.toHaveBeenCalled();
     });
 
     it('rejects when the role does not exist for that tenant', async () => {

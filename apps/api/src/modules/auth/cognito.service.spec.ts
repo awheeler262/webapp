@@ -21,6 +21,7 @@ describe('CognitoService', () => {
   let queryBuilder: {
     where: jest.Mock;
     andWhere: jest.Mock;
+    orderBy: jest.Mock;
     getOne: jest.Mock;
   };
   let dataSource: {
@@ -38,6 +39,7 @@ describe('CognitoService', () => {
     queryBuilder = {
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
       getOne: jest.fn(),
     };
     invitationRepo = {
@@ -125,6 +127,10 @@ describe('CognitoService', () => {
         'invitation.expires_at > :now',
         expect.objectContaining({ now: expect.any(Date) }),
       );
+      expect(queryBuilder.orderBy).toHaveBeenCalledWith(
+        'invitation.expires_at',
+        'ASC',
+      );
       expect(result).toBe(invitation);
     });
   });
@@ -145,26 +151,37 @@ describe('CognitoService', () => {
     });
   });
 
-  describe('findTenantUserRole', () => {
-    it('returns the role_id on file for the (user, tenant) pair', async () => {
-      tenantUserRepo.findOne.mockResolvedValue({
-        roleId: 'role-1',
-      } as TenantUser);
+  describe('hasTenantUserRole', () => {
+    // Queries the exact tuple rather than fetching *a* row for (user, tenant)
+    // and comparing roleId separately -- tenant_users has no unique
+    // constraint on (user_id, tenant_id), so a user with two rows for the
+    // same tenant but different roles would otherwise get an arbitrary one
+    // back and could be spuriously rejected for a role they actually hold.
+    it('is true when the exact (user, tenant, role) tuple is on file', async () => {
+      tenantUserRepo.findOne.mockResolvedValue({} as TenantUser);
 
-      const result = await service.findTenantUserRole('user-1', 'tenant-1');
+      const result = await service.hasTenantUserRole(
+        'user-1',
+        'tenant-1',
+        'role-1',
+      );
 
       expect(tenantUserRepo.findOne).toHaveBeenCalledWith({
-        where: { userId: 'user-1', tenantId: 'tenant-1' },
+        where: { userId: 'user-1', tenantId: 'tenant-1', roleId: 'role-1' },
       });
-      expect(result).toBe('role-1');
+      expect(result).toBe(true);
     });
 
-    it('returns null when the user is not a member of that tenant', async () => {
+    it('is false when the user is not a member of that tenant', async () => {
       tenantUserRepo.findOne.mockResolvedValue(null);
 
-      const result = await service.findTenantUserRole('user-1', 'tenant-1');
+      const result = await service.hasTenantUserRole(
+        'user-1',
+        'tenant-1',
+        'role-1',
+      );
 
-      expect(result).toBeNull();
+      expect(result).toBe(false);
     });
   });
 

@@ -35,7 +35,7 @@ export class AuthService {
   }
 
   // Keep for debugging
-  // return this.sign('8fb2a405-503e-4344-8543-6e8d93f4c9ee', email);
+  // return this.sign({ id: '8fb2a405-503e-4344-8543-6e8d93f4c9ee', email, isDevops: false } as User);
   async login(email: string, password: string) {
     if (this.config.isCognitoEnabled()) {
       throw new ServiceUnavailableException();

@@ -70,4 +70,29 @@ describe('EventLogService', () => {
     );
     errorSpy.mockRestore();
   });
+
+  // EventLogInterceptor/EventLogExceptionFilter await record() on every
+  // request, including ones that are otherwise deliberately DB-independent
+  // (e.g. /api/health) -- this bounds how long a request can be held up
+  // waiting on a hung/slow write during a DB outage, rather than inheriting
+  // the shared DataSource's full 3000ms connectionTimeoutMillis.
+  it('gives up and falls back to Logger.error if the write has not settled within the timeout budget', async () => {
+    jest.useFakeTimers();
+    const errorSpy = jest
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
+    repo.create.mockImplementation((v) => v as EventLog);
+    repo.save.mockImplementation(() => new Promise(() => {})); // never settles
+
+    const recordPromise = service.record(entry);
+    await jest.advanceTimersByTimeAsync(300);
+    await recordPromise;
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('event_log write failed'),
+      expect.any(String),
+    );
+    errorSpy.mockRestore();
+    jest.useRealTimers();
+  });
 });

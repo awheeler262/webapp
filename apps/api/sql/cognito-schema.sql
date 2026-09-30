@@ -40,6 +40,10 @@ CREATE TABLE tenant_users (
     role_id uuid NOT NULL REFERENCES roles (id)
 );
 
+-- Speeds up CognitoService.findTenantIdsForUser/hasTenantUserRole, both
+-- queried on every tenant-scoped request via TenantContextGuard.
+CREATE INDEX tenant_users_user_id_tenant_id_idx ON tenant_users (user_id, tenant_id);
+
 CREATE TABLE invitations (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id uuid NOT NULL REFERENCES tenant (id),
@@ -50,6 +54,9 @@ CREATE TABLE invitations (
     accepted_at timestamptz,
     invited_by uuid NOT NULL REFERENCES users (id)
 );
+
+-- Looked up on every login attempt for an email with no cognito identity yet.
+CREATE INDEX invitations_email_idx ON invitations (email);
 
 -- One row per request. user_id/tenant_id/role_id are nullable -- not every
 -- request is authenticated (e.g. the login attempt itself) or tenant-scoped.
@@ -68,3 +75,7 @@ CREATE TABLE event_log (
     ip_address inet,
     created_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- Written on essentially every request (see EventLogInterceptor/
+-- EventLogExceptionFilter) -- index for time-range review/retention queries.
+CREATE INDEX event_log_created_at_idx ON event_log (created_at);

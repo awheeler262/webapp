@@ -1,4 +1,10 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  UseGuards,
+} from '@nestjs/common';
 import { CognitoService } from '../auth/cognito.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { DevopsGuard } from '../auth/devops.guard';
@@ -14,7 +20,7 @@ export class TenantsController {
   }
 
   @Get(':tenantId/roles')
-  listRoles(@Param('tenantId') tenantId: string) {
+  listRoles(@Param('tenantId', ParseUUIDPipe) tenantId: string) {
     return this.cognito.listRolesForTenant(tenantId);
   }
 }
