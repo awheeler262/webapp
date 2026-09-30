@@ -79,3 +79,17 @@ CREATE TABLE event_log (
 -- Written on essentially every request (see EventLogInterceptor/
 -- EventLogExceptionFilter) -- index for time-range review/retention queries.
 CREATE INDEX event_log_created_at_idx ON event_log (created_at);
+
+-- One row per FAILED login attempt (not every attempt) -- LoginThrottleGuard
+-- blocks on too many recent failures for either the submitted email or the
+-- submitting IP. No cleanup job (no cron/migration system) -- rows accumulate,
+-- same limitation event_log already has.
+CREATE TABLE login_attempts (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    email varchar NOT NULL,
+    ip_address inet,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX login_attempts_email_idx ON login_attempts (email, created_at);
+CREATE INDEX login_attempts_ip_address_idx ON login_attempts (ip_address, created_at);

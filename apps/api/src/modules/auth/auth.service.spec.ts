@@ -7,6 +7,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
 import { CognitoService } from './cognito.service';
+import { LoginAttemptsService } from './login-attempts.service';
 import { UsersService } from '../users/users.service';
 import { ConfigService } from '../../config/config.service';
 
@@ -16,6 +17,7 @@ describe('AuthService', () => {
   let service: AuthService;
   let usersService: jest.Mocked<UsersService>;
   let cognitoService: jest.Mocked<CognitoService>;
+  let loginAttemptsService: jest.Mocked<LoginAttemptsService>;
   let jwtService: jest.Mocked<JwtService>;
   let configService: jest.Mocked<ConfigService>;
 
@@ -37,6 +39,10 @@ describe('AuthService', () => {
           },
         },
         {
+          provide: LoginAttemptsService,
+          useValue: { recordFailure: jest.fn().mockResolvedValue(undefined) },
+        },
+        {
           provide: JwtService,
           useValue: { sign: jest.fn(), decode: jest.fn() },
         },
@@ -53,6 +59,7 @@ describe('AuthService', () => {
     service = module.get(AuthService);
     usersService = module.get(UsersService);
     cognitoService = module.get(CognitoService);
+    loginAttemptsService = module.get(LoginAttemptsService);
     jwtService = module.get(JwtService);
     configService = module.get(ConfigService);
   });
@@ -65,9 +72,9 @@ describe('AuthService', () => {
     it('returns 503 when cognito is enabled, without touching the database', async () => {
       configService.isCognitoEnabled.mockReturnValue(true);
 
-      await expect(service.login('a@b.com', 'pw')).rejects.toThrow(
-        ServiceUnavailableException,
-      );
+      await expect(
+        service.login('a@b.com', 'pw', '203.0.113.1'),
+      ).rejects.toThrow(ServiceUnavailableException);
       expect(cognitoService.findByEmail).not.toHaveBeenCalled();
     });
 
@@ -81,10 +88,14 @@ describe('AuthService', () => {
         });
         (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
-        await expect(service.login('a@b.com', 'wrong-pw')).rejects.toThrow(
-          UnauthorizedException,
-        );
+        await expect(
+          service.login('a@b.com', 'wrong-pw', '203.0.113.1'),
+        ).rejects.toThrow(UnauthorizedException);
         expect(usersService.findByCognitoSub).not.toHaveBeenCalled();
+        expect(loginAttemptsService.recordFailure).toHaveBeenCalledWith(
+          'a@b.com',
+          '203.0.113.1',
+        );
       });
 
       it('returns a signed token with tenants when the password matches', async () => {
@@ -103,7 +114,11 @@ describe('AuthService', () => {
         jwtService.sign.mockReturnValue('real-token');
         jwtService.decode.mockReturnValue({ exp: 1234567890 });
 
-        const result = await service.login('a@b.com', 'correct-pw');
+        const result = await service.login(
+          'a@b.com',
+          'correct-pw',
+          '203.0.113.1',
+        );
 
         expect(jwtService.sign).toHaveBeenCalledWith({
           sub: '1',
@@ -115,6 +130,7 @@ describe('AuthService', () => {
           exp: 1234567890,
           tenants: ['t1', 't2'],
         });
+        expect(loginAttemptsService.recordFailure).not.toHaveBeenCalled();
       });
 
       it('includes isDevops in the response user, but never in the signed JWT payload', async () => {
@@ -134,7 +150,11 @@ describe('AuthService', () => {
         jwtService.sign.mockReturnValue('devops-token');
         jwtService.decode.mockReturnValue({ exp: 1234567890 });
 
-        const result = await service.login('devops@b.com', 'correct-pw');
+        const result = await service.login(
+          'devops@b.com',
+          'correct-pw',
+          '203.0.113.1',
+        );
 
         expect(jwtService.sign).toHaveBeenCalledWith({
           sub: '1',
@@ -154,9 +174,13 @@ describe('AuthService', () => {
         cognitoService.findValidInvitation.mockResolvedValue(null);
 
         await expect(
-          service.login('invited@b.com', 'temp-token'),
+          service.login('invited@b.com', 'temp-token', '203.0.113.1'),
         ).rejects.toThrow(UnauthorizedException);
         expect(cognitoService.createIdentity).not.toHaveBeenCalled();
+        expect(loginAttemptsService.recordFailure).toHaveBeenCalledWith(
+          'invited@b.com',
+          '203.0.113.1',
+        );
       });
 
       it('throws UnauthorizedException if the submitted password does not match the invitation token hash', async () => {
@@ -169,7 +193,7 @@ describe('AuthService', () => {
         (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
         await expect(
-          service.login('invited@b.com', 'wrong-token'),
+          service.login('invited@b.com', 'wrong-token', '203.0.113.1'),
         ).rejects.toThrow(UnauthorizedException);
         expect(cognitoService.createIdentity).not.toHaveBeenCalled();
       });
@@ -193,7 +217,11 @@ describe('AuthService', () => {
         jwtService.sign.mockReturnValue('provisioned-token');
         jwtService.decode.mockReturnValue({ exp: 1234567890 });
 
-        const result = await service.login('invited@b.com', 'the-real-token');
+        const result = await service.login(
+          'invited@b.com',
+          'the-real-token',
+          '203.0.113.1',
+        );
 
         expect(cognitoService.createIdentity).toHaveBeenCalledWith({
           email: 'invited@b.com',
@@ -207,6 +235,7 @@ describe('AuthService', () => {
           exp: 1234567890,
           tenants: ['tenant-1'],
         });
+        expect(loginAttemptsService.recordFailure).not.toHaveBeenCalled();
       });
     });
   });

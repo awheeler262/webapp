@@ -4,10 +4,12 @@ import { PassportModule } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { CognitoService } from './cognito.service';
+import { LoginAttemptsService } from './login-attempts.service';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { DevopsGuard } from './devops.guard';
 import { TenantContextGuard } from './tenant-context.guard';
+import { LoginThrottleGuard } from './login-throttle.guard';
 import { UsersModule } from '../users/users.module';
 import { DatabaseModule } from '../../database/database.module';
 import { ConfigModule } from '../../config/config.module';
@@ -38,10 +40,12 @@ import { ConfigService } from '../../config/config.service';
   providers: [
     AuthService,
     CognitoService,
+    LoginAttemptsService,
     JwtStrategy,
     JwtAuthGuard,
     DevopsGuard,
     TenantContextGuard,
+    LoginThrottleGuard,
   ],
   controllers: [AuthController],
   exports: [CognitoService, JwtAuthGuard, DevopsGuard, TenantContextGuard],

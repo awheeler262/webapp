@@ -6,6 +6,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { CognitoService } from './cognito.service';
+import { LoginAttemptsService } from './login-attempts.service';
 import { ConfigService } from '../../config/config.service';
 import * as bcrypt from 'bcrypt';
 import { User } from '../users/entities/user.entity';
@@ -15,13 +16,14 @@ export class AuthService {
   constructor(
     private users: UsersService,
     private cognito: CognitoService,
+    private loginAttempts: LoginAttemptsService,
     private jwt: JwtService,
     private config: ConfigService,
   ) {}
 
   // Keep for debugging
   // return this.sign({ id: '8fb2a405-503e-4344-8543-6e8d93f4c9ee', email, isDevops: false } as User);
-  async login(email: string, password: string) {
+  async login(email: string, password: string, ip: string | null) {
     if (this.config.isCognitoEnabled()) {
       throw new ServiceUnavailableException();
     }
@@ -29,9 +31,15 @@ export class AuthService {
     const cognito = await this.cognito.findByEmail(email);
     if (cognito) {
       const valid = await bcrypt.compare(password, cognito.password);
-      if (!valid) throw new UnauthorizedException('Invalid credentials');
+      if (!valid) {
+        await this.loginAttempts.recordFailure(email, ip);
+        throw new UnauthorizedException('Invalid credentials');
+      }
       const user = await this.users.findByCognitoSub(cognito.sub);
-      if (!user) throw new UnauthorizedException('Invalid credentials');
+      if (!user) {
+        await this.loginAttempts.recordFailure(email, ip);
+        throw new UnauthorizedException('Invalid credentials');
+      }
       return this.signWithTenants(user);
     }
 
@@ -40,9 +48,15 @@ export class AuthService {
     // not just a matching email), and becomes the account's real password on
     // success. Mirrors how a real Cognito invite flow uses a temp password.
     const invitation = await this.cognito.findValidInvitation(email);
-    if (!invitation) throw new UnauthorizedException('Invalid credentials');
+    if (!invitation) {
+      await this.loginAttempts.recordFailure(email, ip);
+      throw new UnauthorizedException('Invalid credentials');
+    }
     const tokenValid = await bcrypt.compare(password, invitation.tokenHash);
-    if (!tokenValid) throw new UnauthorizedException('Invalid credentials');
+    if (!tokenValid) {
+      await this.loginAttempts.recordFailure(email, ip);
+      throw new UnauthorizedException('Invalid credentials');
+    }
 
     const user = await this.cognito.createIdentity({
       email,

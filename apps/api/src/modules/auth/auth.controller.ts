@@ -13,6 +13,7 @@ import { IsEmail, IsString, MinLength } from 'class-validator';
 import type { Response, Request } from 'express';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { LoginThrottleGuard } from './login-throttle.guard';
 
 class LoginDto {
   @IsEmail()
@@ -49,13 +50,17 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(LoginThrottleGuard)
   async login(
     @Body() dto: LoginDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
+    const ip = req.ip ?? req.socket.remoteAddress ?? null;
     const { accessToken, user, exp, tenants } = await this.auth.login(
       dto.email,
       dto.password,
+      ip,
     );
     setAuthCookie(res, accessToken, exp);
     return { user, expiresAt: exp * 1000, tenants };
