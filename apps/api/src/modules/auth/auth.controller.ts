@@ -79,7 +79,6 @@ export class AuthController {
     const { tokenExp, ...user } = req.user as {
       tokenExp: number;
       id: string;
-      isDevops: boolean;
       [key: string]: unknown;
     };
     const tenants = await this.auth.getAvailableTenants(user);

@@ -14,7 +14,6 @@ describe('EventLogService', () => {
     userId: 'user-1',
     tenantId: 'tenant-1',
     roleId: 'role-1',
-    isDevops: false,
     method: 'GET',
     path: '/api/tenants',
     statusCode: 200,

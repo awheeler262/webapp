@@ -6,14 +6,15 @@
 
 CREATE TABLE tenant (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    name varchar NOT NULL
+    name varchar UNIQUE NOT NULL
 );
 
 -- Tenant-scoped, not global -- each tenant defines its own roles.
 CREATE TABLE roles (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id uuid NOT NULL REFERENCES tenant (id),
-    name varchar NOT NULL
+    name varchar NOT NULL,
+    UNIQUE (tenant_id, name)
 );
 
 CREATE TABLE users (
@@ -21,7 +22,6 @@ CREATE TABLE users (
     email varchar UNIQUE NOT NULL,
     name varchar NOT NULL,
     cognito_sub uuid UNIQUE NOT NULL,
-    is_devops boolean NOT NULL DEFAULT false,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -33,11 +33,14 @@ CREATE TABLE cognito (
     sub uuid UNIQUE NOT NULL
 );
 
+-- There is no devops/superuser flag -- cross-tenant support access is granted
+-- by manually inserting a row here per (tenant, role) the person needs.
 CREATE TABLE tenant_users (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id uuid NOT NULL REFERENCES users (id),
     tenant_id uuid NOT NULL REFERENCES tenant (id),
-    role_id uuid NOT NULL REFERENCES roles (id)
+    role_id uuid NOT NULL REFERENCES roles (id),
+    UNIQUE (tenant_id, user_id, role_id)
 );
 
 -- Speeds up CognitoService.findTenantIdsForUser/hasTenantUserRole, both
@@ -60,15 +63,11 @@ CREATE INDEX invitations_email_idx ON invitations (email);
 
 -- One row per request. user_id/tenant_id/role_id are nullable -- not every
 -- request is authenticated (e.g. the login attempt itself) or tenant-scoped.
--- is_devops distinguishes cross-tenant support access from a regular user
--- acting in their own tenant (this table replaces the earlier, narrower
--- devops_access_log).
 CREATE TABLE event_log (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id uuid REFERENCES users (id),
     tenant_id uuid REFERENCES tenant (id),
     role_id uuid REFERENCES roles (id),
-    is_devops boolean NOT NULL DEFAULT false,
     method varchar NOT NULL,
     path varchar NOT NULL,
     status_code integer NOT NULL,

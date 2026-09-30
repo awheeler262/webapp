@@ -166,7 +166,7 @@ describe('CognitoService', () => {
   });
 
   describe('findAvailableTenants', () => {
-    it('for a regular user, queries tenant_users joined to tenant and roles, scoped to that user', async () => {
+    it('queries tenant_users joined to tenant and roles, scoped to that user', async () => {
       const rows = [
         { tenantId: 't1', tenantName: 'SALT', roleId: 'r1', roleName: 'STAFF' },
       ];
@@ -174,7 +174,6 @@ describe('CognitoService', () => {
 
       const result = await service.findAvailableTenants({
         id: 'user-1',
-        isDevops: false,
       });
 
       expect(tenantUserRepo.createQueryBuilder).toHaveBeenCalledWith(
@@ -188,44 +187,20 @@ describe('CognitoService', () => {
       expect(result).toBe(rows);
     });
 
-    it('for a devops user, queries every role joined to its tenant, unscoped to any user', async () => {
-      const rows = [
-        { tenantId: 't1', tenantName: 'SALT', roleId: 'r1', roleName: 'STAFF' },
-        {
-          tenantId: 't2',
-          tenantName: 'KAOS',
-          roleId: 'r2',
-          roleName: 'MINION',
-        },
-      ];
-      roleJoinQb.getRawMany.mockResolvedValue(rows);
-
-      const result = await service.findAvailableTenants({
-        id: 'devops-1',
-        isDevops: true,
-      });
-
-      expect(roleRepo.createQueryBuilder).toHaveBeenCalledWith('role');
-      expect(roleJoinQb.where).not.toHaveBeenCalled();
-      expect(tenantUserRepo.createQueryBuilder).not.toHaveBeenCalled();
-      expect(result).toBe(rows);
-    });
-
     it('reports a connectivity failure as a clean 503', async () => {
       tenantUserJoinQb.getRawMany.mockRejectedValue({ code: 'ECONNREFUSED' });
 
       await expect(
-        service.findAvailableTenants({ id: 'user-1', isDevops: false }),
+        service.findAvailableTenants({ id: 'user-1' }),
       ).rejects.toThrow(ServiceUnavailableException);
     });
   });
 
   describe('hasTenantUserRole', () => {
     // Queries the exact tuple rather than fetching *a* row for (user, tenant)
-    // and comparing roleId separately -- tenant_users has no unique
-    // constraint on (user_id, tenant_id), so a user with two rows for the
-    // same tenant but different roles would otherwise get an arbitrary one
-    // back and could be spuriously rejected for a role they actually hold.
+    // and comparing roleId separately -- a user can hold several roles in the
+    // same tenant, so they'd otherwise get an arbitrary row back and could be
+    // spuriously rejected for a role they actually hold.
     it('is true when the exact (user, tenant, role) tuple is on file', async () => {
       tenantUserRepo.findOne.mockResolvedValue({} as TenantUser);
 
@@ -254,52 +229,6 @@ describe('CognitoService', () => {
     });
   });
 
-  describe('roleExists', () => {
-    it('is true when the role belongs to that tenant', async () => {
-      roleRepo.findOne.mockResolvedValue({ id: 'role-1' } as Role);
-
-      const result = await service.roleExists('tenant-1', 'role-1');
-
-      expect(roleRepo.findOne).toHaveBeenCalledWith({
-        where: { id: 'role-1', tenantId: 'tenant-1' },
-      });
-      expect(result).toBe(true);
-    });
-
-    it('is false when no role matches that id + tenant pair', async () => {
-      roleRepo.findOne.mockResolvedValue(null);
-
-      const result = await service.roleExists('tenant-1', 'wrong-role');
-
-      expect(result).toBe(false);
-    });
-  });
-
-  describe('listTenants', () => {
-    it('returns all tenants', async () => {
-      const tenants = [{ id: 't1' }, { id: 't2' }] as Tenant[];
-      tenantRepo.find.mockResolvedValue(tenants);
-
-      const result = await service.listTenants();
-
-      expect(result).toBe(tenants);
-    });
-  });
-
-  describe('listRolesForTenant', () => {
-    it('returns roles scoped to the given tenant', async () => {
-      const roles = [{ id: 'role-1', tenantId: 'tenant-1' }] as Role[];
-      roleRepo.find.mockResolvedValue(roles);
-
-      const result = await service.listRolesForTenant('tenant-1');
-
-      expect(roleRepo.find).toHaveBeenCalledWith({
-        where: { tenantId: 'tenant-1' },
-      });
-      expect(result).toBe(roles);
-    });
-  });
-
   describe('createIdentity', () => {
     it('creates a cognito row and a user row, hashing the password, with no tenant/invitation side effects when no invitation is given', async () => {
       cognitoRepo.create.mockImplementation((v) => v as Cognito);
@@ -324,7 +253,6 @@ describe('CognitoService', () => {
         email: 'a@b.com',
         name: 'Alice',
         cognitoSub: cognitoCreateArg.sub,
-        isDevops: false,
       });
 
       expect(tenantUserRepo.save).not.toHaveBeenCalled();

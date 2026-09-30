@@ -16,7 +16,6 @@ export function logRequest(
     userId: request.user?.id ?? null,
     tenantId: request.tenantContext?.tenantId ?? null,
     roleId: request.tenantContext?.roleId ?? null,
-    isDevops: request.tenantContext?.isDevops ?? false,
     method: request.method,
     path: request.path,
     statusCode,

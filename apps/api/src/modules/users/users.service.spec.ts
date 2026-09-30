@@ -80,7 +80,6 @@ describe('UsersService', () => {
           id: true,
           email: true,
           name: true,
-          isDevops: true,
           createdAt: true,
         },
       });

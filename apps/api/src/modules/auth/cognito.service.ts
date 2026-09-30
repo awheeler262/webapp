@@ -95,31 +95,13 @@ export class CognitoService {
     );
   }
 
-  // One unified shape for both user types, so callers (AuthService, and
-  // ultimately the frontend) never have to special-case devops vs. regular
-  // users: a devops user gets every tenant x its roles (mirroring
-  // listTenants()/listRolesForTenant(), reused here rather than duplicated);
-  // a regular user gets only their actual tenant_users memberships. A user
-  // can hold more than one role in the same tenant -- tenant_users has no
-  // unique constraint on (user_id, tenant_id) -- so this is a flat list, not
-  // one entry per tenant.
-  async findAvailableTenants(user: {
-    id: string;
-    isDevops: boolean;
-  }): Promise<AvailableTenant[]> {
+  // A user's actual tenant_users memberships. A user can hold more than one
+  // role in the same tenant -- tenant_users is unique on (tenant_id, user_id,
+  // role_id), not (user_id, tenant_id) -- so this is a flat list, not one
+  // entry per tenant. Cross-tenant support access is granted by inserting
+  // tenant_users rows manually, not by a flag on the user.
+  async findAvailableTenants(user: { id: string }): Promise<AvailableTenant[]> {
     return this.withDataSource((dataSource) => {
-      if (user.isDevops) {
-        return dataSource
-          .getRepository(Role)
-          .createQueryBuilder('role')
-          .innerJoin(Tenant, 'tenant', 'tenant.id = role.tenant_id')
-          .select('tenant.id', 'tenantId')
-          .addSelect('tenant.name', 'tenantName')
-          .addSelect('role.id', 'roleId')
-          .addSelect('role.name', 'roleName')
-          .getRawMany<AvailableTenant>();
-      }
-
       return dataSource
         .getRepository(TenantUser)
         .createQueryBuilder('tenantUser')
@@ -134,13 +116,12 @@ export class CognitoService {
     });
   }
 
-  // The regular-user source of truth for TenantContextGuard -- true only if
-  // this exact (user, tenant, role) tuple is on file. Checking the tuple
-  // directly (rather than fetching *a* row for (user, tenant) and comparing
-  // roleId separately) matters because tenant_users has no unique constraint
-  // on (user_id, tenant_id) -- a user with two rows for the same tenant but
-  // different roles would otherwise get an arbitrary one back from findOne(),
-  // spuriously rejecting a role they actually hold.
+  // The source of truth for TenantContextGuard -- true only if this exact
+  // (user, tenant, role) tuple is on file. Checking the tuple directly (rather
+  // than fetching *a* row for (user, tenant) and comparing roleId separately)
+  // matters because a user can hold several roles in the same tenant -- they'd
+  // otherwise get an arbitrary row back from findOne(), spuriously rejecting a
+  // role they actually hold.
   async hasTenantUserRole(
     userId: string,
     tenantId: string,
@@ -151,30 +132,6 @@ export class CognitoService {
       (repo) => repo.findOne({ where: { userId, tenantId, roleId } }),
     );
     return row !== null;
-  }
-
-  // The devops-user check for TenantContextGuard -- true only if roleId belongs
-  // to tenantId, so a devops user can't reference a role from a different tenant.
-  async roleExists(tenantId: string, roleId: string): Promise<boolean> {
-    const row = await this.withRepo(
-      (ds) => ds.getRepository(Role),
-      (repo) => repo.findOne({ where: { id: roleId, tenantId } }),
-    );
-    return row !== null;
-  }
-
-  async listTenants(): Promise<Tenant[]> {
-    return this.withRepo(
-      (ds) => ds.getRepository(Tenant),
-      (repo) => repo.find(),
-    );
-  }
-
-  async listRolesForTenant(tenantId: string): Promise<Role[]> {
-    return this.withRepo(
-      (ds) => ds.getRepository(Role),
-      (repo) => repo.find({ where: { tenantId } }),
-    );
   }
 
   // Provisions a cognito identity + user profile in a single transaction --
@@ -203,16 +160,11 @@ export class CognitoService {
               .create({ email, password: hashed, sub }),
           );
 
-        // isDevops set explicitly rather than left to the column default --
-        // TypeORM doesn't reflect a plain @Column default back onto the
-        // in-memory entity after save(), and this codepath must never
-        // silently grant it regardless.
         const user = await manager.getRepository(User).save(
           manager.getRepository(User).create({
             email,
             name,
             cognitoSub: sub,
-            isDevops: false,
           }),
         );
 

@@ -8,7 +8,6 @@ export type EventLogEntry = {
   userId: string | null;
   tenantId: string | null;
   roleId: string | null;
-  isDevops: boolean;
   method: string;
   path: string;
   statusCode: number;

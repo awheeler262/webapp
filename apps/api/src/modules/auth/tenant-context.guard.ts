@@ -11,7 +11,6 @@ import { CognitoService } from './cognito.service';
 export type TenantContext = {
   tenantId: string;
   roleId: string;
-  isDevops: boolean;
 };
 
 // Runs after JwtAuthGuard -- req.user must already be populated. Every
@@ -27,7 +26,7 @@ export class TenantContextGuard implements CanActivate {
     const request = context
       .switchToHttp()
       .getRequest<Request & { tenantContext?: TenantContext }>();
-    const user = request.user as { id: string; isDevops?: boolean } | undefined;
+    const user = request.user as { id: string } | undefined;
     if (!user) throw new ForbiddenException();
 
     const tenantId = request.headers['x-tenant-id'];
@@ -38,18 +37,11 @@ export class TenantContextGuard implements CanActivate {
       );
     }
 
-    const isDevops = user.isDevops === true;
-    if (isDevops) {
-      if (!(await this.cognito.roleExists(tenantId, roleId))) {
-        throw new ForbiddenException();
-      }
-    } else {
-      if (!(await this.cognito.hasTenantUserRole(user.id, tenantId, roleId))) {
-        throw new ForbiddenException();
-      }
+    if (!(await this.cognito.hasTenantUserRole(user.id, tenantId, roleId))) {
+      throw new ForbiddenException();
     }
 
-    request.tenantContext = { tenantId, roleId, isDevops };
+    request.tenantContext = { tenantId, roleId };
     return true;
   }
 }

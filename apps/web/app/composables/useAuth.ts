@@ -1,7 +1,6 @@
 type AuthUser = {
   id: string
   email: string
-  isDevops?: boolean
 }
 
 export type AvailableTenant = {

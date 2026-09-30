@@ -30,14 +30,13 @@ describe('TenantContextGuard', () => {
   beforeEach(() => {
     cognito = {
       hasTenantUserRole: jest.fn(),
-      roleExists: jest.fn(),
     } as unknown as jest.Mocked<CognitoService>;
     guard = new TenantContextGuard(cognito);
   });
 
   it('throws BadRequestException when X-Tenant-Id or X-Role-Id is missing', async () => {
     const context = contextFor({
-      user: { id: 'u1', isDevops: false },
+      user: { id: 'u1' },
       headers: { 'x-tenant-id': 'tenant-1' },
     });
 
@@ -46,11 +45,11 @@ describe('TenantContextGuard', () => {
     );
   });
 
-  describe('for a regular (non-devops) user', () => {
+  describe('for a user', () => {
     it('allows the request when the header role matches tenant_users', async () => {
       cognito.hasTenantUserRole.mockResolvedValue(true);
       const context = contextFor({
-        user: { id: 'u1', isDevops: false },
+        user: { id: 'u1' },
         headers: { 'x-tenant-id': 'tenant-1', 'x-role-id': 'role-1' },
       });
 
@@ -65,7 +64,7 @@ describe('TenantContextGuard', () => {
     it('rejects when the user has no membership in that tenant', async () => {
       cognito.hasTenantUserRole.mockResolvedValue(false);
       const context = contextFor({
-        user: { id: 'u1', isDevops: false },
+        user: { id: 'u1' },
         headers: { 'x-tenant-id': 'tenant-1', 'x-role-id': 'role-1' },
       });
 
@@ -77,36 +76,8 @@ describe('TenantContextGuard', () => {
     it('rejects when the header role does not match the actual assigned role', async () => {
       cognito.hasTenantUserRole.mockResolvedValue(false);
       const context = contextFor({
-        user: { id: 'u1', isDevops: false },
+        user: { id: 'u1' },
         headers: { 'x-tenant-id': 'tenant-1', 'x-role-id': 'role-2' },
-      });
-
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        ForbiddenException,
-      );
-    });
-  });
-
-  describe('for a devops user', () => {
-    it('allows the request when the role exists for that tenant', async () => {
-      cognito.roleExists.mockResolvedValue(true);
-      const context = contextFor({
-        user: { id: 'devops-1', isDevops: true },
-        headers: { 'x-tenant-id': 'tenant-9', 'x-role-id': 'role-9' },
-        method: 'GET',
-        originalUrl: '/api/tenants/tenant-9/roles',
-      });
-
-      await expect(guard.canActivate(context)).resolves.toBe(true);
-      expect(cognito.roleExists).toHaveBeenCalledWith('tenant-9', 'role-9');
-      expect(cognito.hasTenantUserRole).not.toHaveBeenCalled();
-    });
-
-    it('rejects when the role does not exist for that tenant', async () => {
-      cognito.roleExists.mockResolvedValue(false);
-      const context = contextFor({
-        user: { id: 'devops-1', isDevops: true },
-        headers: { 'x-tenant-id': 'tenant-9', 'x-role-id': 'nonexistent' },
       });
 
       await expect(guard.canActivate(context)).rejects.toThrow(

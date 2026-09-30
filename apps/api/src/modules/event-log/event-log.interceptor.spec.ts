@@ -18,7 +18,6 @@ function contextFor(
     tenantContext?: {
       tenantId: string;
       roleId: string;
-      isDevops: boolean;
     };
     method?: string;
     path?: string;
@@ -65,7 +64,6 @@ describe('EventLogInterceptor', () => {
       userId: 'user-1',
       tenantId: null,
       roleId: null,
-      isDevops: false,
       method: 'POST',
       path: '/api/things',
       statusCode: 204,
@@ -105,10 +103,10 @@ describe('EventLogInterceptor', () => {
 
   it('includes tenantContext fields when TenantContextGuard has set them', async () => {
     const context = contextFor(TestController.prototype.withoutExplicitCode, {
-      user: { id: 'devops-1' },
-      tenantContext: { tenantId: 't1', roleId: 'r1', isDevops: true },
+      user: { id: 'user-1' },
+      tenantContext: { tenantId: 't1', roleId: 'r1' },
       method: 'GET',
-      path: '/api/tenants',
+      path: '/api/things',
     });
 
     await firstValueFrom(
@@ -117,10 +115,9 @@ describe('EventLogInterceptor', () => {
 
     expect(eventLog.record).toHaveBeenCalledWith(
       expect.objectContaining({
-        userId: 'devops-1',
+        userId: 'user-1',
         tenantId: 't1',
         roleId: 'r1',
-        isDevops: true,
       }),
     );
   });

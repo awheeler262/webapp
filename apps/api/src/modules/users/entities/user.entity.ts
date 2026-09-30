@@ -20,9 +20,6 @@ export class User {
   @Column({ name: 'cognito_sub', unique: true })
   cognitoSub: string;
 
-  @Column({ name: 'is_devops', default: false })
-  isDevops: boolean;
-
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

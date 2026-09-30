@@ -23,9 +23,6 @@ export class EventLog {
   @Column({ name: 'role_id', type: 'uuid', nullable: true })
   roleId: string | null;
 
-  @Column({ name: 'is_devops', default: false })
-  isDevops: boolean;
-
   @Column()
   method: string;
 

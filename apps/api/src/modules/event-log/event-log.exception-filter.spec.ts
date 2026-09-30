@@ -45,7 +45,7 @@ describe('EventLogExceptionFilter', () => {
   it('logs the HttpException status/context and still sends the normal error response', async () => {
     const request = {
       user: { id: 'user-1' },
-      tenantContext: { tenantId: 't1', roleId: 'r1', isDevops: false },
+      tenantContext: { tenantId: 't1', roleId: 'r1' },
       method: 'GET',
       path: '/api/tenants',
       ip: '203.0.113.1',
@@ -60,7 +60,6 @@ describe('EventLogExceptionFilter', () => {
       userId: 'user-1',
       tenantId: 't1',
       roleId: 'r1',
-      isDevops: false,
       method: 'GET',
       path: '/api/tenants',
       statusCode: 403,

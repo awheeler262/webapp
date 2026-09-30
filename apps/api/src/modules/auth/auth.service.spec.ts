@@ -146,40 +146,6 @@ describe('AuthService', () => {
         });
         expect(loginAttemptsService.recordFailure).not.toHaveBeenCalled();
       });
-
-      it('includes isDevops in the response user, but never in the signed JWT payload', async () => {
-        cognitoService.findByEmail.mockResolvedValue({
-          id: 'c1',
-          email: 'devops@b.com',
-          password: 'hashed',
-          sub: 'sub-1',
-        });
-        (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-        usersService.findByCognitoSub.mockResolvedValue({
-          id: '1',
-          email: 'devops@b.com',
-          isDevops: true,
-        } as any);
-        cognitoService.findAvailableTenants.mockResolvedValue([]);
-        jwtService.sign.mockReturnValue('devops-token');
-        jwtService.decode.mockReturnValue({ exp: 1234567890 });
-
-        const result = await service.login(
-          'devops@b.com',
-          'correct-pw',
-          '203.0.113.1',
-        );
-
-        expect(jwtService.sign).toHaveBeenCalledWith({
-          sub: '1',
-          email: 'devops@b.com',
-        });
-        expect(result.user).toEqual({
-          id: '1',
-          email: 'devops@b.com',
-          isDevops: true,
-        });
-      });
     });
 
     describe('when no cognito identity exists for the email', () => {
@@ -271,12 +237,10 @@ describe('AuthService', () => {
 
       const result = await service.getAvailableTenants({
         id: 'user-1',
-        isDevops: false,
       });
 
       expect(cognitoService.findAvailableTenants).toHaveBeenCalledWith({
         id: 'user-1',
-        isDevops: false,
       });
       expect(result).toBe(availableTenants);
     });
