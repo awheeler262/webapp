@@ -66,6 +66,7 @@ describe('EventLogInterceptor', () => {
       roleId: null,
       method: 'POST',
       path: '/api/things',
+      error: null,
       statusCode: 204,
       ipAddress: '203.0.113.1',
     });

@@ -63,6 +63,10 @@ CREATE INDEX invitations_email_idx ON invitations (email);
 
 -- One row per request. user_id/tenant_id/role_id are nullable -- not every
 -- request is authenticated (e.g. the login attempt itself) or tenant-scoped.
+-- error is only populated when status_code >= 500 -- troubleshooting detail
+-- (message + cause chain) that may contain internal information and need not
+-- match the response message, so treat this table as DB-access-only.
+-- Existing databases: ALTER TABLE event_log ADD COLUMN error text;
 CREATE TABLE event_log (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id uuid REFERENCES users (id),
@@ -71,6 +75,7 @@ CREATE TABLE event_log (
     method varchar NOT NULL,
     path varchar NOT NULL,
     status_code integer NOT NULL,
+    error text,
     ip_address inet,
     created_at timestamptz NOT NULL DEFAULT now()
 );

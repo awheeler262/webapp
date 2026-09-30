@@ -1,6 +1,7 @@
 import {
   ArgumentsHost,
   ForbiddenException,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import type { AbstractHttpAdapter } from '@nestjs/core';
@@ -63,6 +64,7 @@ describe('EventLogExceptionFilter', () => {
       method: 'GET',
       path: '/api/tenants',
       statusCode: 403,
+      error: null,
       ipAddress: '203.0.113.1',
     });
     expect(applicationRef.reply).toHaveBeenCalledWith(
@@ -100,12 +102,41 @@ describe('EventLogExceptionFilter', () => {
     await flush();
 
     expect(eventLog.record).toHaveBeenCalledWith(
-      expect.objectContaining({ statusCode: 500 }),
+      expect.objectContaining({ statusCode: 500, error: 'Error: boom' }),
     );
     expect(applicationRef.reply).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
       500,
+    );
+  });
+
+  it('logs the cause chain for a 503 but sends the client only the generic message', async () => {
+    const request = {
+      method: 'POST',
+      path: '/api/boost',
+      socket: { remoteAddress: '203.0.113.1' },
+    };
+    const exception = new ServiceUnavailableException('Boost unavailable', {
+      cause: new Error(
+        'BOOST_LAMBDA_FUNCTION_NAME environment variable is not set',
+      ),
+    });
+
+    filter.catch(exception, hostFor(request));
+    await flush();
+
+    expect(eventLog.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 503,
+        error:
+          'ServiceUnavailableException: Boost unavailable <- Error: BOOST_LAMBDA_FUNCTION_NAME environment variable is not set',
+      }),
+    );
+    expect(applicationRef.reply).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.not.stringContaining('BOOST_LAMBDA_FUNCTION_NAME'),
+      503,
     );
   });
 });

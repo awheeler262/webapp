@@ -11,6 +11,7 @@ export function logRequest(
   eventLog: EventLogService,
   request: LoggableRequest,
   statusCode: number,
+  error: string | null = null,
 ): Promise<void> {
   return eventLog.record({
     userId: request.user?.id ?? null,
@@ -19,6 +20,7 @@ export function logRequest(
     method: request.method,
     path: request.path,
     statusCode,
+    error,
     // Same source as BoostController's extractProxyRequest (sourceIp) -- req.ip
     // falls back to the raw socket peer when there's no trust-proxy config.
     ipAddress: request.ip ?? request.socket.remoteAddress ?? null,

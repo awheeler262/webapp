@@ -32,6 +32,11 @@ export class EventLog {
   @Column({ name: 'status_code' })
   statusCode: number;
 
+  // Only set for 5xx -- internal detail that deliberately may not match the
+  // response message. Explicit type for the same nullable-union reason as above.
+  @Column({ type: 'text', nullable: true })
+  error: string | null;
+
   @Column({ name: 'ip_address', type: 'inet', nullable: true })
   ipAddress: string | null;
 

@@ -11,6 +11,7 @@ export type EventLogEntry = {
   method: string;
   path: string;
   statusCode: number;
+  error: string | null;
   ipAddress: string | null;
 };
 

@@ -17,6 +17,7 @@ describe('EventLogService', () => {
     method: 'GET',
     path: '/api/tenants',
     statusCode: 200,
+    error: null,
     ipAddress: '203.0.113.1',
   };
 

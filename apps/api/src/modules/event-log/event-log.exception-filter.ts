@@ -1,6 +1,7 @@
 import { ArgumentsHost, Catch, HttpException } from '@nestjs/common';
 import { AbstractHttpAdapter, BaseExceptionFilter } from '@nestjs/core';
 import { EventLogService } from './event-log.service';
+import { formatError } from './format-error';
 import { logRequest, LoggableRequest } from './log-request';
 
 // Catches everything (guard rejections, pipe validation failures, handler
@@ -27,7 +28,10 @@ export class EventLogExceptionFilter extends BaseExceptionFilter {
     const request = host.switchToHttp().getRequest<LoggableRequest>();
     const status =
       exception instanceof HttpException ? exception.getStatus() : 500;
-    void logRequest(this.eventLog, request, status).then(() => {
+    // Internal detail, so only kept for server errors and never sent to the
+    // client -- BaseExceptionFilter builds the response independently.
+    const error = status >= 500 ? formatError(exception) : null;
+    void logRequest(this.eventLog, request, status, error).then(() => {
       super.catch(exception, host);
     });
   }
