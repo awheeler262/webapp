@@ -31,7 +31,6 @@ describe('TenantContextGuard', () => {
     cognito = {
       findTenantUserRole: jest.fn(),
       roleExists: jest.fn(),
-      logDevopsAccess: jest.fn(),
     } as unknown as jest.Mocked<CognitoService>;
     guard = new TenantContextGuard(cognito);
   });
@@ -57,7 +56,6 @@ describe('TenantContextGuard', () => {
 
       await expect(guard.canActivate(context)).resolves.toBe(true);
       expect(cognito.findTenantUserRole).toHaveBeenCalledWith('u1', 'tenant-1');
-      expect(cognito.logDevopsAccess).not.toHaveBeenCalled();
     });
 
     it('rejects when the user has no membership in that tenant', async () => {
@@ -86,7 +84,7 @@ describe('TenantContextGuard', () => {
   });
 
   describe('for a devops user', () => {
-    it('allows the request when the role exists for that tenant, and logs the access', async () => {
+    it('allows the request when the role exists for that tenant', async () => {
       cognito.roleExists.mockResolvedValue(true);
       const context = contextFor({
         user: { id: 'devops-1', isDevops: true },
@@ -98,16 +96,9 @@ describe('TenantContextGuard', () => {
       await expect(guard.canActivate(context)).resolves.toBe(true);
       expect(cognito.roleExists).toHaveBeenCalledWith('tenant-9', 'role-9');
       expect(cognito.findTenantUserRole).not.toHaveBeenCalled();
-      expect(cognito.logDevopsAccess).toHaveBeenCalledWith({
-        userId: 'devops-1',
-        tenantId: 'tenant-9',
-        roleId: 'role-9',
-        method: 'GET',
-        path: '/api/tenants/tenant-9/roles',
-      });
     });
 
-    it('rejects when the role does not exist for that tenant, and does not log', async () => {
+    it('rejects when the role does not exist for that tenant', async () => {
       cognito.roleExists.mockResolvedValue(false);
       const context = contextFor({
         user: { id: 'devops-1', isDevops: true },
@@ -117,7 +108,6 @@ describe('TenantContextGuard', () => {
       await expect(guard.canActivate(context)).rejects.toThrow(
         ForbiddenException,
       );
-      expect(cognito.logDevopsAccess).not.toHaveBeenCalled();
     });
   });
 });

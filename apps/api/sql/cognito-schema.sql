@@ -51,14 +51,20 @@ CREATE TABLE invitations (
     invited_by uuid NOT NULL REFERENCES users (id)
 );
 
--- Written only when a request is authorized via the is_devops path (cross-tenant
--- support access) -- not for a regular user acting in their own tenant.
-CREATE TABLE devops_access_log (
+-- One row per request. user_id/tenant_id/role_id are nullable -- not every
+-- request is authenticated (e.g. the login attempt itself) or tenant-scoped.
+-- is_devops distinguishes cross-tenant support access from a regular user
+-- acting in their own tenant (this table replaces the earlier, narrower
+-- devops_access_log).
+CREATE TABLE event_log (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id uuid NOT NULL REFERENCES users (id),
-    tenant_id uuid NOT NULL REFERENCES tenant (id),
-    role_id uuid NOT NULL REFERENCES roles (id),
+    user_id uuid REFERENCES users (id),
+    tenant_id uuid REFERENCES tenant (id),
+    role_id uuid REFERENCES roles (id),
+    is_devops boolean NOT NULL DEFAULT false,
     method varchar NOT NULL,
     path varchar NOT NULL,
+    status_code integer NOT NULL,
+    ip_address inet,
     created_at timestamptz NOT NULL DEFAULT now()
 );

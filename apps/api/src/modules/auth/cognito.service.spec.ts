@@ -7,7 +7,6 @@ import { Invitation } from './entities/invitation.entity';
 import { Tenant } from './entities/tenant.entity';
 import { Role } from './entities/role.entity';
 import { TenantUser } from './entities/tenant-user.entity';
-import { DevopsAccessLog } from './entities/devops-access-log.entity';
 import { User } from '../users/entities/user.entity';
 import { DATA_SOURCE } from '../../database/database.module';
 
@@ -18,7 +17,6 @@ describe('CognitoService', () => {
   let tenantRepo: jest.Mocked<Repository<Tenant>>;
   let roleRepo: jest.Mocked<Repository<Role>>;
   let tenantUserRepo: jest.Mocked<Repository<TenantUser>>;
-  let devopsAccessLogRepo: jest.Mocked<Repository<DevopsAccessLog>>;
   let userRepo: jest.Mocked<Repository<User>>;
   let queryBuilder: {
     where: jest.Mock;
@@ -59,10 +57,6 @@ describe('CognitoService', () => {
       create: jest.fn(),
       save: jest.fn(),
     } as unknown as jest.Mocked<Repository<TenantUser>>;
-    devopsAccessLogRepo = {
-      create: jest.fn(),
-      save: jest.fn(),
-    } as unknown as jest.Mocked<Repository<DevopsAccessLog>>;
     userRepo = {
       create: jest.fn(),
       save: jest.fn(),
@@ -74,7 +68,6 @@ describe('CognitoService', () => {
       [Tenant, tenantRepo],
       [Role, roleRepo],
       [TenantUser, tenantUserRepo],
-      [DevopsAccessLog, devopsAccessLogRepo],
       [User, userRepo],
     ]);
 
@@ -218,27 +211,6 @@ describe('CognitoService', () => {
         where: { tenantId: 'tenant-1' },
       });
       expect(result).toBe(roles);
-    });
-  });
-
-  describe('logDevopsAccess', () => {
-    it('inserts a devops_access_log row', async () => {
-      const entry = {
-        userId: 'user-1',
-        tenantId: 'tenant-1',
-        roleId: 'role-1',
-        method: 'GET',
-        path: '/api/tenants',
-      };
-      devopsAccessLogRepo.create.mockImplementation(
-        (v) => v as DevopsAccessLog,
-      );
-      devopsAccessLogRepo.save.mockResolvedValue({} as DevopsAccessLog);
-
-      await service.logDevopsAccess(entry);
-
-      expect(devopsAccessLogRepo.create).toHaveBeenCalledWith(entry);
-      expect(devopsAccessLogRepo.save).toHaveBeenCalledWith(entry);
     });
   });
 

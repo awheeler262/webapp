@@ -11,7 +11,6 @@ import { Invitation } from './entities/invitation.entity';
 import { Tenant } from './entities/tenant.entity';
 import { Role } from './entities/role.entity';
 import { TenantUser } from './entities/tenant-user.entity';
-import { DevopsAccessLog } from './entities/devops-access-log.entity';
 import { User } from '../users/entities/user.entity';
 import {
   ensureInitialized,
@@ -118,19 +117,6 @@ export class CognitoService {
     return this.withRepo(
       (ds) => ds.getRepository(Role),
       (repo) => repo.find({ where: { tenantId } }),
-    );
-  }
-
-  async logDevopsAccess(entry: {
-    userId: string;
-    tenantId: string;
-    roleId: string;
-    method: string;
-    path: string;
-  }): Promise<void> {
-    await this.withRepo(
-      (ds) => ds.getRepository(DevopsAccessLog),
-      (repo) => repo.save(repo.create(entry)),
     );
   }
 

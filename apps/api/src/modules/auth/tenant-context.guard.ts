@@ -43,13 +43,6 @@ export class TenantContextGuard implements CanActivate {
       if (!(await this.cognito.roleExists(tenantId, roleId))) {
         throw new ForbiddenException();
       }
-      await this.cognito.logDevopsAccess({
-        userId: user.id,
-        tenantId,
-        roleId,
-        method: request.method,
-        path: request.originalUrl,
-      });
     } else {
       const actualRoleId = await this.cognito.findTenantUserRole(
         user.id,
