@@ -1,7 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
-  ConflictException,
-  ForbiddenException,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -27,7 +25,7 @@ describe('AuthService', () => {
         AuthService,
         {
           provide: UsersService,
-          useValue: { findByEmail: jest.fn(), findByCognitoSub: jest.fn() },
+          useValue: { findByCognitoSub: jest.fn() },
         },
         {
           provide: CognitoService,
@@ -47,7 +45,6 @@ describe('AuthService', () => {
           useValue: {
             isProduction: jest.fn().mockReturnValue(false),
             isCognitoEnabled: jest.fn().mockReturnValue(false),
-            isRegistrationAllowed: jest.fn().mockReturnValue(true),
           },
         },
       ],
@@ -62,67 +59,6 @@ describe('AuthService', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
-  });
-
-  describe('register', () => {
-    it('throws ForbiddenException when registration is not allowed', async () => {
-      configService.isRegistrationAllowed.mockReturnValue(false);
-
-      await expect(
-        service.register({
-          email: 'a@b.com',
-          name: 'A',
-          password: 'pw',
-        } as any),
-      ).rejects.toThrow(ForbiddenException);
-      expect(usersService.findByEmail).not.toHaveBeenCalled();
-    });
-
-    it('throws ConflictException if the email is already in use', async () => {
-      usersService.findByEmail.mockResolvedValue({ id: '1' } as any);
-
-      await expect(
-        service.register({
-          email: 'a@b.com',
-          name: 'A',
-          password: 'pw',
-        } as any),
-      ).rejects.toThrow(ConflictException);
-      expect(cognitoService.createIdentity).not.toHaveBeenCalled();
-    });
-
-    it('creates the identity (no invitation) and returns a signed token with tenants', async () => {
-      usersService.findByEmail.mockResolvedValue(null);
-      cognitoService.createIdentity.mockResolvedValue({
-        id: '1',
-        email: 'a@b.com',
-      } as any);
-      cognitoService.findTenantIdsForUser.mockResolvedValue([]);
-      jwtService.sign.mockReturnValue('signed-token');
-      jwtService.decode.mockReturnValue({ exp: 1234567890 });
-
-      const result = await service.register({
-        email: 'a@b.com',
-        name: 'A',
-        password: 'pw',
-      });
-
-      expect(cognitoService.createIdentity).toHaveBeenCalledWith({
-        email: 'a@b.com',
-        name: 'A',
-        passwordPlain: 'pw',
-      });
-      expect(jwtService.sign).toHaveBeenCalledWith({
-        sub: '1',
-        email: 'a@b.com',
-      });
-      expect(result).toEqual({
-        accessToken: 'signed-token',
-        user: { id: '1', email: 'a@b.com' },
-        exp: 1234567890,
-        tenants: [],
-      });
-    });
   });
 
   describe('login', () => {

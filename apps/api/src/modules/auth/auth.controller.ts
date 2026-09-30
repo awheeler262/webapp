@@ -13,7 +13,6 @@ import { IsEmail, IsString, MinLength } from 'class-validator';
 import type { Response, Request } from 'express';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
-import { CreateUserDto } from '@my-app/validation';
 
 class LoginDto {
   @IsEmail()
@@ -47,16 +46,6 @@ function setAuthCookie(res: Response, accessToken: string, exp: number) {
 @Controller('auth')
 export class AuthController {
   constructor(private auth: AuthService) {}
-
-  @Post('register')
-  async register(
-    @Body() dto: CreateUserDto,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const { accessToken, user, exp, tenants } = await this.auth.register(dto);
-    setAuthCookie(res, accessToken, exp);
-    return { user, expiresAt: exp * 1000, tenants };
-  }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)

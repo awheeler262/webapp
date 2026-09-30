@@ -40,10 +40,6 @@ export class UsersService {
     }
   }
 
-  async findByEmail(email: string) {
-    return this.withRepo((repo) => repo.findOne({ where: { email } }));
-  }
-
   async findByCognitoSub(cognitoSub: string) {
     return this.withRepo((repo) => repo.findOne({ where: { cognitoSub } }));
   }

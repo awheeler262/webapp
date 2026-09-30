@@ -1,6 +1,4 @@
 import {
-  ConflictException,
-  ForbiddenException,
   Injectable,
   ServiceUnavailableException,
   UnauthorizedException,
@@ -9,7 +7,6 @@ import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { CognitoService } from './cognito.service';
 import { ConfigService } from '../../config/config.service';
-import { CreateUserDto } from '@my-app/validation';
 import * as bcrypt from 'bcrypt';
 import { User } from '../users/entities/user.entity';
 
@@ -21,18 +18,6 @@ export class AuthService {
     private jwt: JwtService,
     private config: ConfigService,
   ) {}
-
-  async register(dto: CreateUserDto) {
-    if (!this.config.isRegistrationAllowed()) throw new ForbiddenException();
-    const existing = await this.users.findByEmail(dto.email);
-    if (existing) throw new ConflictException('Email already in use');
-    const user = await this.cognito.createIdentity({
-      email: dto.email,
-      name: dto.name,
-      passwordPlain: dto.password,
-    });
-    return this.signWithTenants(user);
-  }
 
   // Keep for debugging
   // return this.sign({ id: '8fb2a405-503e-4344-8543-6e8d93f4c9ee', email, isDevops: false } as User);
@@ -74,7 +59,7 @@ export class AuthService {
   }
 
   // isDevops is included in the response's user object (so the frontend knows
-  // whether to show the tenant/role picker right after login/register) but
+  // whether to show the tenant/role picker right after login) but
   // deliberately never in the signed payload -- JwtStrategy.validate() always
   // re-fetches it fresh from the DB, so it's never trusted from a possibly
   // stale token.

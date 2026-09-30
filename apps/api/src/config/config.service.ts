@@ -4,8 +4,6 @@ import {
   GetSecretValueCommand,
 } from '@aws-sdk/client-secrets-manager';
 
-const REGISTRATION_ALLOWED_ENVS = new Set(['development', 'test', 'e2e']);
-
 @Injectable()
 export class ConfigService {
   private jwtSecret?: Promise<string>;
@@ -17,13 +15,6 @@ export class ConfigService {
 
   isCognitoEnabled(): boolean {
     return process.env.USE_COGNITO === 'true';
-  }
-
-  // Allowlists known-safe environments rather than denylisting 'production' --
-  // an unrecognized/misconfigured NODE_ENV now fails closed (registration blocked)
-  // instead of failing open (registration silently allowed).
-  isRegistrationAllowed(): boolean {
-    return REGISTRATION_ALLOWED_ENVS.has(process.env.NODE_ENV ?? 'development');
   }
 
   getBoostFunctionName(): string {

@@ -36,32 +36,6 @@ describe('UsersService', () => {
     jest.clearAllMocks();
   });
 
-  describe('findByEmail', () => {
-    it('queries by email and returns the full entity', async () => {
-      const user = {
-        id: '1',
-        email: 'alice@example.com',
-        cognitoSub: 'sub-1',
-      } as User;
-      repository.findOne.mockResolvedValue(user);
-
-      const result = await service.findByEmail('alice@example.com');
-
-      expect(repository.findOne).toHaveBeenCalledWith({
-        where: { email: 'alice@example.com' },
-      });
-      expect(result).toBe(user);
-    });
-
-    it('returns null when no user matches', async () => {
-      repository.findOne.mockResolvedValue(null);
-
-      const result = await service.findByEmail('nobody@example.com');
-
-      expect(result).toBeNull();
-    });
-  });
-
   describe('findByCognitoSub', () => {
     it('queries by cognitoSub and returns the full entity', async () => {
       const user = {
@@ -117,10 +91,10 @@ describe('UsersService', () => {
   // Covers a connection that was live (isInitialized stays true) but has since
   // died -- getRepo()/ensureInitialized never sees this, only the query call does.
   describe('when the database becomes unavailable mid-connection', () => {
-    it('reports findByEmail as a clean 503 instead of the raw connectivity error', async () => {
+    it('reports findByCognitoSub as a clean 503 instead of the raw connectivity error', async () => {
       repository.findOne.mockRejectedValue({ code: 'ECONNREFUSED' });
 
-      await expect(service.findByEmail('alice@example.com')).rejects.toThrow(
+      await expect(service.findByCognitoSub('sub-1')).rejects.toThrow(
         ServiceUnavailableException,
       );
     });
@@ -129,7 +103,7 @@ describe('UsersService', () => {
       const conflictError = { code: '23505', message: 'duplicate key value' };
       repository.findOne.mockRejectedValue(conflictError);
 
-      await expect(service.findByEmail('alice@example.com')).rejects.toBe(
+      await expect(service.findByCognitoSub('sub-1')).rejects.toBe(
         conflictError,
       );
     });

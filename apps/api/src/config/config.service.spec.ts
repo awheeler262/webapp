@@ -35,23 +35,6 @@ describe('ConfigService', () => {
     });
   });
 
-  describe('isRegistrationAllowed', () => {
-    it('is true for known-safe environments', () => {
-      process.env.NODE_ENV = 'development';
-      expect(service.isRegistrationAllowed()).toBe(true);
-    });
-
-    it('is false in production', () => {
-      process.env.NODE_ENV = 'production';
-      expect(service.isRegistrationAllowed()).toBe(false);
-    });
-
-    it('fails closed for an unrecognized/misconfigured NODE_ENV', () => {
-      process.env.NODE_ENV = 'staging';
-      expect(service.isRegistrationAllowed()).toBe(false);
-    });
-  });
-
   describe('getJwtSecret', () => {
     it('throws if JWT_SECRET is not set', async () => {
       delete process.env.JWT_SECRET;
