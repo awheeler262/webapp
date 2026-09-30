@@ -11,6 +11,7 @@ describe('ConfigService', () => {
   const originalNodeEnv = process.env.NODE_ENV;
   const originalJwtSecret = process.env.JWT_SECRET;
   const originalDatabaseUrl = process.env.DATABASE_URL;
+  const originalBoostPlaceholder = process.env.BOOST_LOCAL_PLACEHOLDER;
 
   beforeEach(() => {
     service = new ConfigService();
@@ -21,6 +22,7 @@ describe('ConfigService', () => {
     process.env.NODE_ENV = originalNodeEnv;
     process.env.JWT_SECRET = originalJwtSecret;
     process.env.DATABASE_URL = originalDatabaseUrl;
+    process.env.BOOST_LOCAL_PLACEHOLDER = originalBoostPlaceholder;
   });
 
   describe('isProduction', () => {
@@ -32,6 +34,18 @@ describe('ConfigService', () => {
     it('is false otherwise', () => {
       process.env.NODE_ENV = 'test';
       expect(service.isProduction()).toBe(false);
+    });
+  });
+
+  describe('isBoostPlaceholderEnabled', () => {
+    it('is true only when the flag is exactly "true"', () => {
+      process.env.BOOST_LOCAL_PLACEHOLDER = 'true';
+      expect(service.isBoostPlaceholderEnabled()).toBe(true);
+    });
+
+    it('is false when unset', () => {
+      delete process.env.BOOST_LOCAL_PLACEHOLDER;
+      expect(service.isBoostPlaceholderEnabled()).toBe(false);
     });
   });
 

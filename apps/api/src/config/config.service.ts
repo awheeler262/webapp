@@ -17,6 +17,13 @@ export class ConfigService {
     return process.env.USE_COGNITO === 'true';
   }
 
+  // Opt-in only -- boost-http.e2e-spec.ts already exercises a real local
+  // Lambda via `sam local start-lambda`, and that workflow must keep working
+  // untouched unless this is explicitly set.
+  isBoostPlaceholderEnabled(): boolean {
+    return process.env.BOOST_LOCAL_PLACEHOLDER === 'true';
+  }
+
   getBoostFunctionName(): string {
     const value = process.env.BOOST_LAMBDA_FUNCTION_NAME;
     if (!value)

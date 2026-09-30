@@ -1,16 +1,28 @@
 type AuthUser = {
   id: string
   email: string
+  isDevops?: boolean
+}
+
+export type AvailableTenant = {
+  tenantId: string
+  tenantName: string
+  roleId: string
+  roleName: string
 }
 
 type Session = {
   user: AuthUser
   expiresAt: number
+  tenants: AvailableTenant[]
 }
 
 export function useAuth() {
   const user = useState<AuthUser | null>('auth_user', () => null)
   const expiresAt = useState<number | null>('auth_expires_at', () => null)
+  // Populated from both /login and /me (session-restore on refresh) --
+  // the Portal page's tenant/role dropdowns need this to survive a refresh.
+  const tenants = useState<AvailableTenant[]>('auth_tenants', () => [])
   // A missing expiresAt is treated as expired (fail closed), not "never expires" --
   // every real session from the API always includes it, so its absence means
   // something is wrong with the session data, not that it's permanently valid.
@@ -19,6 +31,7 @@ export function useAuth() {
   function setSession(session: Session | null) {
     user.value = session?.user ?? null
     expiresAt.value = session?.expiresAt ?? null
+    tenants.value = session?.tenants ?? []
   }
 
   function clearSession() {
@@ -70,5 +83,5 @@ export function useAuth() {
     }
   }
 
-  return { user, isLoggedIn, expiresAt, login, logout, fetchSession, ensureSession, clearSession, setSession }
+  return { user, isLoggedIn, expiresAt, tenants, login, logout, fetchSession, ensureSession, clearSession, setSession }
 }

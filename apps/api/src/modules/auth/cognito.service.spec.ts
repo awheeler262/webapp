@@ -24,6 +24,20 @@ describe('CognitoService', () => {
     orderBy: jest.Mock;
     getOne: jest.Mock;
   };
+  let roleJoinQb: {
+    innerJoin: jest.Mock;
+    where: jest.Mock;
+    select: jest.Mock;
+    addSelect: jest.Mock;
+    getRawMany: jest.Mock;
+  };
+  let tenantUserJoinQb: {
+    innerJoin: jest.Mock;
+    where: jest.Mock;
+    select: jest.Mock;
+    addSelect: jest.Mock;
+    getRawMany: jest.Mock;
+  };
   let dataSource: {
     isInitialized: boolean;
     getRepository: jest.Mock;
@@ -49,15 +63,31 @@ describe('CognitoService', () => {
     tenantRepo = {
       find: jest.fn(),
     } as unknown as jest.Mocked<Repository<Tenant>>;
+    roleJoinQb = {
+      innerJoin: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      getRawMany: jest.fn().mockResolvedValue([]),
+    };
+    tenantUserJoinQb = {
+      innerJoin: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      getRawMany: jest.fn().mockResolvedValue([]),
+    };
     roleRepo = {
       find: jest.fn(),
       findOne: jest.fn(),
+      createQueryBuilder: jest.fn().mockReturnValue(roleJoinQb),
     } as unknown as jest.Mocked<Repository<Role>>;
     tenantUserRepo = {
       find: jest.fn(),
       findOne: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
+      createQueryBuilder: jest.fn().mockReturnValue(tenantUserJoinQb),
     } as unknown as jest.Mocked<Repository<TenantUser>>;
     userRepo = {
       create: jest.fn(),
@@ -135,19 +165,58 @@ describe('CognitoService', () => {
     });
   });
 
-  describe('findTenantIdsForUser', () => {
-    it('returns the tenant ids from tenant_users rows for the user', async () => {
-      tenantUserRepo.find.mockResolvedValue([
-        { tenantId: 't1' },
-        { tenantId: 't2' },
-      ] as TenantUser[]);
+  describe('findAvailableTenants', () => {
+    it('for a regular user, queries tenant_users joined to tenant and roles, scoped to that user', async () => {
+      const rows = [
+        { tenantId: 't1', tenantName: 'SALT', roleId: 'r1', roleName: 'STAFF' },
+      ];
+      tenantUserJoinQb.getRawMany.mockResolvedValue(rows);
 
-      const result = await service.findTenantIdsForUser('user-1');
-
-      expect(tenantUserRepo.find).toHaveBeenCalledWith({
-        where: { userId: 'user-1' },
+      const result = await service.findAvailableTenants({
+        id: 'user-1',
+        isDevops: false,
       });
-      expect(result).toEqual(['t1', 't2']);
+
+      expect(tenantUserRepo.createQueryBuilder).toHaveBeenCalledWith(
+        'tenantUser',
+      );
+      expect(tenantUserJoinQb.where).toHaveBeenCalledWith(
+        'tenantUser.user_id = :userId',
+        { userId: 'user-1' },
+      );
+      expect(roleRepo.createQueryBuilder).not.toHaveBeenCalled();
+      expect(result).toBe(rows);
+    });
+
+    it('for a devops user, queries every role joined to its tenant, unscoped to any user', async () => {
+      const rows = [
+        { tenantId: 't1', tenantName: 'SALT', roleId: 'r1', roleName: 'STAFF' },
+        {
+          tenantId: 't2',
+          tenantName: 'KAOS',
+          roleId: 'r2',
+          roleName: 'MINION',
+        },
+      ];
+      roleJoinQb.getRawMany.mockResolvedValue(rows);
+
+      const result = await service.findAvailableTenants({
+        id: 'devops-1',
+        isDevops: true,
+      });
+
+      expect(roleRepo.createQueryBuilder).toHaveBeenCalledWith('role');
+      expect(roleJoinQb.where).not.toHaveBeenCalled();
+      expect(tenantUserRepo.createQueryBuilder).not.toHaveBeenCalled();
+      expect(result).toBe(rows);
+    });
+
+    it('reports a connectivity failure as a clean 503', async () => {
+      tenantUserJoinQb.getRawMany.mockRejectedValue({ code: 'ECONNREFUSED' });
+
+      await expect(
+        service.findAvailableTenants({ id: 'user-1', isDevops: false }),
+      ).rejects.toThrow(ServiceUnavailableException);
     });
   });
 

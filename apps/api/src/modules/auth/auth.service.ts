@@ -68,8 +68,15 @@ export class AuthService {
   }
 
   private async signWithTenants(user: User) {
-    const tenants = await this.cognito.findTenantIdsForUser(user.id);
+    const tenants = await this.getAvailableTenants(user);
     return { ...this.sign(user), tenants };
+  }
+
+  // Also called directly by AuthController.me() -- the Portal page's
+  // tenant/role dropdowns must survive a page refresh (session-restore goes
+  // through /me, not /login), so both responses carry the same data.
+  async getAvailableTenants(user: { id: string; isDevops: boolean }) {
+    return this.cognito.findAvailableTenants(user);
   }
 
   // isDevops is included in the response's user object (so the frontend knows

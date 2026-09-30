@@ -35,7 +35,7 @@ describe('AuthService', () => {
             findByEmail: jest.fn(),
             findValidInvitation: jest.fn(),
             createIdentity: jest.fn(),
-            findTenantIdsForUser: jest.fn().mockResolvedValue([]),
+            findAvailableTenants: jest.fn().mockResolvedValue([]),
           },
         },
         {
@@ -110,7 +110,21 @@ describe('AuthService', () => {
           id: '1',
           email: 'a@b.com',
         } as any);
-        cognitoService.findTenantIdsForUser.mockResolvedValue(['t1', 't2']);
+        const availableTenants = [
+          {
+            tenantId: 't1',
+            tenantName: 'SALT',
+            roleId: 'r1',
+            roleName: 'STAFF',
+          },
+          {
+            tenantId: 't2',
+            tenantName: 'KAOS',
+            roleId: 'r2',
+            roleName: 'MINION',
+          },
+        ];
+        cognitoService.findAvailableTenants.mockResolvedValue(availableTenants);
         jwtService.sign.mockReturnValue('real-token');
         jwtService.decode.mockReturnValue({ exp: 1234567890 });
 
@@ -128,7 +142,7 @@ describe('AuthService', () => {
           accessToken: 'real-token',
           user: { id: '1', email: 'a@b.com' },
           exp: 1234567890,
-          tenants: ['t1', 't2'],
+          tenants: availableTenants,
         });
         expect(loginAttemptsService.recordFailure).not.toHaveBeenCalled();
       });
@@ -146,7 +160,7 @@ describe('AuthService', () => {
           email: 'devops@b.com',
           isDevops: true,
         } as any);
-        cognitoService.findTenantIdsForUser.mockResolvedValue([]);
+        cognitoService.findAvailableTenants.mockResolvedValue([]);
         jwtService.sign.mockReturnValue('devops-token');
         jwtService.decode.mockReturnValue({ exp: 1234567890 });
 
@@ -213,7 +227,15 @@ describe('AuthService', () => {
           id: '1',
           email: 'invited@b.com',
         } as any);
-        cognitoService.findTenantIdsForUser.mockResolvedValue(['tenant-1']);
+        const availableTenants = [
+          {
+            tenantId: 'tenant-1',
+            tenantName: 'SALT',
+            roleId: 'role-1',
+            roleName: 'STAFF',
+          },
+        ];
+        cognitoService.findAvailableTenants.mockResolvedValue(availableTenants);
         jwtService.sign.mockReturnValue('provisioned-token');
         jwtService.decode.mockReturnValue({ exp: 1234567890 });
 
@@ -233,10 +255,30 @@ describe('AuthService', () => {
           accessToken: 'provisioned-token',
           user: { id: '1', email: 'invited@b.com' },
           exp: 1234567890,
-          tenants: ['tenant-1'],
+          tenants: availableTenants,
         });
         expect(loginAttemptsService.recordFailure).not.toHaveBeenCalled();
       });
+    });
+  });
+
+  describe('getAvailableTenants', () => {
+    it('delegates to CognitoService.findAvailableTenants', async () => {
+      const availableTenants = [
+        { tenantId: 't1', tenantName: 'SALT', roleId: 'r1', roleName: 'STAFF' },
+      ];
+      cognitoService.findAvailableTenants.mockResolvedValue(availableTenants);
+
+      const result = await service.getAvailableTenants({
+        id: 'user-1',
+        isDevops: false,
+      });
+
+      expect(cognitoService.findAvailableTenants).toHaveBeenCalledWith({
+        id: 'user-1',
+        isDevops: false,
+      });
+      expect(result).toBe(availableTenants);
     });
   });
 });

@@ -25,6 +25,13 @@ type CreateIdentityInput = {
   invitation?: Invitation;
 };
 
+export type AvailableTenant = {
+  tenantId: string;
+  tenantName: string;
+  roleId: string;
+  roleName: string;
+};
+
 @Injectable()
 export class CognitoService {
   constructor(@Inject(DATA_SOURCE) private dataSource: DataSource) {}
@@ -41,9 +48,18 @@ export class CognitoService {
     repoFor: (dataSource: DataSource) => Repository<E>,
     fn: (repo: Repository<E>) => Promise<T>,
   ): Promise<T> {
+    return this.withDataSource((dataSource) => fn(repoFor(dataSource)));
+  }
+
+  // Same connectivity-error handling as withRepo, for queries spanning more
+  // than one entity (e.g. a multi-table join) that don't fit its single-repo
+  // shape.
+  private async withDataSource<T>(
+    fn: (dataSource: DataSource) => Promise<T>,
+  ): Promise<T> {
     const dataSource = await this.getDataSource();
     try {
-      return await fn(repoFor(dataSource));
+      return await fn(dataSource);
     } catch (err) {
       if (isConnectivityError(err)) {
         throw new ServiceUnavailableException('Database unavailable', {
@@ -79,12 +95,43 @@ export class CognitoService {
     );
   }
 
-  async findTenantIdsForUser(userId: string): Promise<string[]> {
-    const rows = await this.withRepo(
-      (ds) => ds.getRepository(TenantUser),
-      (repo) => repo.find({ where: { userId } }),
-    );
-    return rows.map((row) => row.tenantId);
+  // One unified shape for both user types, so callers (AuthService, and
+  // ultimately the frontend) never have to special-case devops vs. regular
+  // users: a devops user gets every tenant x its roles (mirroring
+  // listTenants()/listRolesForTenant(), reused here rather than duplicated);
+  // a regular user gets only their actual tenant_users memberships. A user
+  // can hold more than one role in the same tenant -- tenant_users has no
+  // unique constraint on (user_id, tenant_id) -- so this is a flat list, not
+  // one entry per tenant.
+  async findAvailableTenants(user: {
+    id: string;
+    isDevops: boolean;
+  }): Promise<AvailableTenant[]> {
+    return this.withDataSource((dataSource) => {
+      if (user.isDevops) {
+        return dataSource
+          .getRepository(Role)
+          .createQueryBuilder('role')
+          .innerJoin(Tenant, 'tenant', 'tenant.id = role.tenant_id')
+          .select('tenant.id', 'tenantId')
+          .addSelect('tenant.name', 'tenantName')
+          .addSelect('role.id', 'roleId')
+          .addSelect('role.name', 'roleName')
+          .getRawMany<AvailableTenant>();
+      }
+
+      return dataSource
+        .getRepository(TenantUser)
+        .createQueryBuilder('tenantUser')
+        .innerJoin(Tenant, 'tenant', 'tenant.id = tenantUser.tenant_id')
+        .innerJoin(Role, 'role', 'role.id = tenantUser.role_id')
+        .where('tenantUser.user_id = :userId', { userId: user.id })
+        .select('tenant.id', 'tenantId')
+        .addSelect('tenant.name', 'tenantName')
+        .addSelect('role.id', 'roleId')
+        .addSelect('role.name', 'roleName')
+        .getRawMany<AvailableTenant>();
+    });
   }
 
   // The regular-user source of truth for TenantContextGuard -- true only if

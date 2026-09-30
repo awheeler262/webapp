@@ -22,6 +22,7 @@ function sentEvent<T>(command: InvokeCommand): T {
 describe('BoostService', () => {
   let service: BoostService;
   let lambda: LambdaClientMock;
+  let configService: jest.Mocked<ConfigService>;
 
   const proxyRequest: BoostProxyRequest = {
     method: 'POST',
@@ -45,6 +46,7 @@ describe('BoostService', () => {
             getBoostFunctionName: jest
               .fn()
               .mockReturnValue('test-boost-function'),
+            isBoostPlaceholderEnabled: jest.fn().mockReturnValue(false),
           },
         },
         {
@@ -56,10 +58,25 @@ describe('BoostService', () => {
 
     service = module.get(BoostService);
     lambda = module.get(LAMBDA_CLIENT);
+    configService = module.get(ConfigService);
   });
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe('when the local placeholder is enabled', () => {
+    it('returns the placeholder response without calling the Lambda client at all', async () => {
+      configService.isBoostPlaceholderEnabled.mockReturnValue(true);
+
+      const result = await service.invoke({ prompt: 'hello' }, proxyRequest);
+
+      expect(result).toEqual({
+        status:
+          'We thank you for your submission and will get back to you within 24 hours',
+      });
+      expect(lambda.send).not.toHaveBeenCalled();
+    });
   });
 
   describe('the invoke event it builds', () => {

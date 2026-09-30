@@ -2,6 +2,7 @@ import { Controller, Post, Body, Req, UseGuards, Get } from '@nestjs/common';
 import type { Request } from 'express';
 import { BoostService, BoostProxyRequest } from './boost.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { TenantContextGuard } from '../auth/tenant-context.guard';
 import { BoostRequestDto } from '@my-app/validation';
 
 function flattenHeaders(headers: Request['headers']): Record<string, string> {
@@ -42,7 +43,7 @@ export class BoostController {
   constructor(private service: BoostService) {}
 
   @Post('query')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, TenantContextGuard)
   async query(@Body() dto: BoostRequestDto, @Req() req: Request) {
     const proxyRequest = extractProxyRequest(req);
     proxyRequest.method = 'POST';

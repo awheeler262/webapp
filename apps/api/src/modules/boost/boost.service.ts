@@ -34,6 +34,16 @@ export class BoostService {
     dto: BoostRequestDto | null,
     proxyRequest: BoostProxyRequest,
   ): Promise<BoostResponseDto> {
+    // Opt-in local stand-in for the real Lambda -- no AWS credentials or
+    // `sam local start-lambda` needed. Doesn't touch LambdaClient at all, so
+    // this is checked before anything else in this method.
+    if (this.config.isBoostPlaceholderEnabled()) {
+      return {
+        status:
+          'We thank you for your submission and will get back to you within 24 hours',
+      };
+    }
+
     const { method, path, queryString, headers, sourceIp } = proxyRequest;
 
     // Building synthetic API Gateway proxy event for direct invoke

@@ -44,6 +44,7 @@ function onLogout() {
 
     <nav class="links">
       <NuxtLink to="/">Home</NuxtLink>
+      <NuxtLink to="/portal">Portal</NuxtLink>
       <NuxtLink to="/health">Health</NuxtLink>
       <NuxtLink to="/about">About</NuxtLink>
     </nav>

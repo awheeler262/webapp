@@ -75,11 +75,14 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  me(@Req() req: Request) {
+  async me(@Req() req: Request) {
     const { tokenExp, ...user } = req.user as {
       tokenExp: number;
+      id: string;
+      isDevops: boolean;
       [key: string]: unknown;
     };
-    return { user, expiresAt: tokenExp * 1000 };
+    const tenants = await this.auth.getAvailableTenants(user);
+    return { user, expiresAt: tokenExp * 1000, tenants };
   }
 }
