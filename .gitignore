@@ -33,11 +33,10 @@ npm-debug.log*
 .DS_Store
 
 # Other
-aws.md
-notes.md
 webapp.code-workspace
 *.html
 .claude/
 .zap-reports/
+/notes/
 /scripts/
 /utils/
