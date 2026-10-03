@@ -1,4 +1,6 @@
 import { ServiceUnavailableException } from '@nestjs/common';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { DataSource } from 'typeorm';
 import { User } from '../modules/users/entities/user.entity';
 import { Cognito } from '../modules/auth/entities/cognito.entity';
@@ -8,11 +10,10 @@ import { Role } from '../modules/auth/entities/role.entity';
 import { TenantUser } from '../modules/auth/entities/tenant-user.entity';
 import { LoginAttempt } from '../modules/auth/entities/login-attempt.entity';
 import { EventLog } from '../modules/event-log/entities/event-log.entity';
-import { ConfigService } from '../config/config.service';
+import { ConfigService, DatabaseConfig } from '../config/config.service';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
-  url: process.env.DATABASE_URL,
   entities: [
     User,
     Cognito,
@@ -27,8 +28,29 @@ export const AppDataSource = new DataSource({
   // Without this, pg's default TCP connect can hang far longer than expected
   // against an unreachable host -- fail fast instead so a lazy connect attempt
   // (see ensureInitialized below) doesn't block a request indefinitely.
-  extra: { connectionTimeoutMillis: 3000 },
+  //
+  // max is kept small because every Lambda container opens its own pool -- the
+  // default of 10 would let a burst of concurrent invocations exhaust RDS.
+  extra: { connectionTimeoutMillis: 3000, max: 3 },
 });
+
+// RDS's public CA bundle for us-east-1 (integrity pinned by certs/bundle.spec.ts)
+// -- copied into dist/ by the nest-cli assets config so it ships in the Lambda
+// zip. Passed as the connection's `ca` rather than NODE_EXTRA_CA_CERTS so it
+// only widens trust for this one connection, not every TLS call in the process.
+const RDS_CA_BUNDLE = join(__dirname, '..', 'certs', 'us-east-1-bundle.pem');
+
+// Outside production (a plain URL) there's no TLS; in production (discrete
+// fields from the secret) the server certificate is always verified.
+export function toConnectionOptions(config: DatabaseConfig) {
+  if ('url' in config) return { url: config.url };
+  return {
+    ...config,
+    // Explicit so a url can never take precedence over the secret's fields.
+    url: undefined,
+    ssl: { ca: readFileSync(RDS_CA_BUNDLE, 'utf8'), rejectUnauthorized: true },
+  };
+}
 
 let initPromise: Promise<DataSource> | null = null;
 
@@ -49,13 +71,13 @@ export function ensureInitialized(dataSource: DataSource): Promise<DataSource> {
 }
 
 // A fresh ConfigService per connection attempt (not a shared module-level
-// instance) -- ConfigService.getDatabaseUrl() memoizes even on rejection
+// instance) -- ConfigService.getDatabaseConfig() memoizes even on rejection
 // (same as getJwtSecret()), so reusing one instance across attempts would
 // let a failed resolution get cached forever and defeat the retry-on-failure
 // behavior above.
 async function resolveAndConnect(dataSource: DataSource): Promise<DataSource> {
-  const url = await new ConfigService().getDatabaseUrl();
-  dataSource.setOptions({ url });
+  const config = await new ConfigService().getDatabaseConfig();
+  dataSource.setOptions(toConnectionOptions(config));
   return dataSource.initialize();
 }
 

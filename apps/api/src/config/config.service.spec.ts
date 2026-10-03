@@ -121,73 +121,123 @@ describe('ConfigService', () => {
     });
   });
 
-  describe('getDatabaseUrl', () => {
+  describe('getDatabaseConfig', () => {
     it('throws if DATABASE_URL is not set', async () => {
       delete process.env.DATABASE_URL;
-      await expect(service.getDatabaseUrl()).rejects.toThrow(
+      await expect(service.getDatabaseConfig()).rejects.toThrow(
         'DATABASE_URL environment variable is not set',
       );
     });
 
-    it('outside production, returns the env var value directly with no AWS call', async () => {
+    it('outside production, returns the env var as a url with no AWS call', async () => {
       process.env.NODE_ENV = 'test';
       process.env.DATABASE_URL = 'postgres://localhost:5432/webapp';
 
-      const result = await service.getDatabaseUrl();
+      const result = await service.getDatabaseConfig();
 
-      expect(result).toBe('postgres://localhost:5432/webapp');
+      expect(result).toEqual({ url: 'postgres://localhost:5432/webapp' });
       expect(SecretsManagerClient).not.toHaveBeenCalled();
     });
 
     describe('in production', () => {
+      const secret = {
+        username: 'app',
+        password: 'p@ss/w:rd#1',
+        host: 'db.example.us-east-1.rds.amazonaws.com',
+        port: 5432,
+        dbname: 'webapp',
+      };
+
+      function mockSecret(secretString?: string) {
+        const send = jest
+          .fn()
+          .mockResolvedValue({ SecretString: secretString });
+        (SecretsManagerClient as jest.Mock).mockImplementation(() => ({
+          send,
+        }));
+        return send;
+      }
+
       beforeEach(() => {
         process.env.NODE_ENV = 'production';
         process.env.DATABASE_URL = 'my-db-secret-name';
       });
 
-      it('fetches the secret value from Secrets Manager using DATABASE_URL as the secret name', async () => {
-        const send = jest.fn().mockResolvedValue({
-          SecretString: 'postgres://prod-host:5432/webapp',
-        });
-        (SecretsManagerClient as jest.Mock).mockImplementation(() => ({
-          send,
-        }));
+      it('fetches the JSON secret using DATABASE_URL as the secret name and maps its fields', async () => {
+        const send = mockSecret(JSON.stringify(secret));
 
-        const result = await service.getDatabaseUrl();
+        const result = await service.getDatabaseConfig();
 
         expect(send).toHaveBeenCalledWith(expect.any(GetSecretValueCommand));
         expect(GetSecretValueCommand).toHaveBeenCalledWith({
           SecretId: 'my-db-secret-name',
         });
-        expect(result).toBe('postgres://prod-host:5432/webapp');
+        expect(result).toEqual({
+          host: secret.host,
+          port: 5432,
+          username: 'app',
+          password: 'p@ss/w:rd#1',
+          database: 'webapp',
+        });
+      });
+
+      it('accepts the port as a numeric string', async () => {
+        mockSecret(JSON.stringify({ ...secret, port: '5433' }));
+
+        await expect(service.getDatabaseConfig()).resolves.toMatchObject({
+          port: 5433,
+        });
       });
 
       it('throws if the secret has no SecretString', async () => {
-        const send = jest.fn().mockResolvedValue({});
-        (SecretsManagerClient as jest.Mock).mockImplementation(() => ({
-          send,
-        }));
+        mockSecret(undefined);
 
-        await expect(service.getDatabaseUrl()).rejects.toThrow(
+        await expect(service.getDatabaseConfig()).rejects.toThrow(
           'Secrets Manager secret "my-db-secret-name" has no SecretString',
         );
       });
 
+      it('throws without echoing the contents if the secret is not valid JSON', async () => {
+        mockSecret('postgres://app:hunter2@host/db');
+
+        const result = service.getDatabaseConfig();
+
+        await expect(result).rejects.toThrow(
+          'Secrets Manager secret "my-db-secret-name" is not valid JSON',
+        );
+        await expect(result).rejects.not.toThrow(/hunter2/);
+      });
+
+      it.each(['username', 'password', 'host', 'dbname'])(
+        'throws naming the key if "%s" is missing',
+        async (key) => {
+          const incomplete: Record<string, unknown> = { ...secret };
+          delete incomplete[key];
+          mockSecret(JSON.stringify(incomplete));
+
+          await expect(service.getDatabaseConfig()).rejects.toThrow(
+            `Secrets Manager secret "my-db-secret-name" is missing "${key}"`,
+          );
+        },
+      );
+
+      it('throws if the port is missing or not a positive integer', async () => {
+        mockSecret(JSON.stringify({ ...secret, port: 'abc' }));
+
+        await expect(service.getDatabaseConfig()).rejects.toThrow(
+          'Secrets Manager secret "my-db-secret-name" has an invalid "port"',
+        );
+      });
+
       it('only fetches once and caches the in-flight promise for subsequent calls', async () => {
-        const send = jest.fn().mockResolvedValue({
-          SecretString: 'postgres://prod-host:5432/webapp',
-        });
-        (SecretsManagerClient as jest.Mock).mockImplementation(() => ({
-          send,
-        }));
+        const send = mockSecret(JSON.stringify(secret));
 
         const [first, second] = await Promise.all([
-          service.getDatabaseUrl(),
-          service.getDatabaseUrl(),
+          service.getDatabaseConfig(),
+          service.getDatabaseConfig(),
         ]);
 
-        expect(first).toBe('postgres://prod-host:5432/webapp');
-        expect(second).toBe('postgres://prod-host:5432/webapp');
+        expect(first).toBe(second);
         expect(send).toHaveBeenCalledTimes(1);
       });
     });

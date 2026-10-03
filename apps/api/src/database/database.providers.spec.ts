@@ -1,4 +1,4 @@
-import { isConnectivityError } from './database.providers';
+import { isConnectivityError, toConnectionOptions } from './database.providers';
 
 describe('isConnectivityError', () => {
   it('recognizes a raw Node connection-refused error', () => {
@@ -33,5 +33,37 @@ describe('isConnectivityError', () => {
     expect(isConnectivityError(null)).toBe(false);
     expect(isConnectivityError(undefined)).toBe(false);
     expect(isConnectivityError('a string')).toBe(false);
+  });
+});
+
+describe('toConnectionOptions', () => {
+  it('passes a url config through untouched, with no TLS', () => {
+    expect(toConnectionOptions({ url: 'postgres://localhost/webapp' })).toEqual(
+      { url: 'postgres://localhost/webapp' },
+    );
+  });
+
+  it('maps discrete fields and always verifies the server against the bundled RDS CA', () => {
+    const options = toConnectionOptions({
+      host: 'db.example.rds.amazonaws.com',
+      port: 5432,
+      username: 'app',
+      password: 'secret',
+      database: 'webapp',
+    });
+
+    expect(options).toMatchObject({
+      host: 'db.example.rds.amazonaws.com',
+      port: 5432,
+      username: 'app',
+      password: 'secret',
+      database: 'webapp',
+    });
+    expect(options.url).toBeUndefined();
+    expect(options).toHaveProperty('ssl.rejectUnauthorized', true);
+    expect(options).toHaveProperty(
+      'ssl.ca',
+      expect.stringContaining('BEGIN CERTIFICATE'),
+    );
   });
 });

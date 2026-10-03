@@ -55,7 +55,7 @@ Note: `apps/api`'s jest config sets `rootDir: "src"`, so `--testPathPatterns`/`-
 - Cross-cutting bootstrap concerns (helmet, security headers, CORS, the global `ValidationPipe`) are factored out of `main.ts` into named functions in `app.config.ts`; `main.ts` just calls them in sequence.
 - Every request is logged to `event_log` (`modules/event-log/`). For 5xx responses, `EventLogExceptionFilter` also fills `event_log.error` with the exception message plus `cause` chain (connection URLs redacted, capped at 2000 chars) — internal detail that intentionally differs from the client-facing response, so treat the table as DB-access-only.
 - Global route prefix is `api` (set in `main.ts`) — every route is under `/api/...`.
-- Required env vars live in `apps/api/.env` (gitignored): `DATABASE_URL`, `JWT_SECRET`, `JWT_EXPIRY`, `CORS_ORIGIN`, `PORT`, `NODE_ENV`.
+- Required env vars live in `apps/api/.env` (gitignored): `DATABASE_URL`, `JWT_SECRET`, `JWT_EXPIRY`, `CORS_ORIGIN`, `PORT`, `NODE_ENV`. In production, `JWT_SECRET` and `DATABASE_URL` hold the *name* of a Secrets Manager secret instead of the value. The database secret is JSON — `{"username","password","host","port","dbname"}` — and production connections always use TLS verified against `src/certs/us-east-1-bundle.pem` (RDS's public CA bundle, shipped in `dist/` via `nest-cli.json` assets; a unit test pins its SHA-256, so update the hash when refreshing the file). Outside production `DATABASE_URL` is a plain connection URL with no TLS.
 
 ### Shared packages
 
